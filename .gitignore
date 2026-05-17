@@ -1,0 +1,65 @@
+# ─── Secrets y entorno ───────────────────────────────────────────────
+.env
+.env.local
+*.env
+
+# ─── Python ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# ─── Entornos virtuales ──────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─── Jupyter Notebooks ───────────────────────────────────────────────
+.ipynb_checkpoints/
+*-checkpoint.ipynb
+
+# ─── Datos (no versionar contenido pesado o sensible) ────────────────
+# Si querés versionar los PDFs, comentá esta línea:
+data/pdfs/*.pdf
+data/imagenes_extraidas/
+data/*.json
+
+# ─── Outputs y trazas generadas ──────────────────────────────────────
+outputs/
+trayectoria_histologia.json
+trayectoria_qdrant.json
+trayectoria_neo4j.json
+temario_histologia.json
+logs/
+
+# ─── Modelos descargados (cache de HuggingFace) ──────────────────────
+.cache/
+hf_cache/
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# ─── IDEs ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── Persistencia local de Qdrant (si se usa local) ──────────────────
+qdrant_data/
+qdrant_memoria/
+
+# ─── Archivos temporales ─────────────────────────────────────────────
+*.tmp
+*.bak
+*~
