@@ -1,0 +1,36 @@
+{
+  "recall_k": {
+    "histologia_eval_pagina": {
+      "Recall@1": 0.167,
+      "Recall@3": 0.3,
+      "Recall@5": 0.333
+    },
+    "histologia_eval_500": {
+      "Recall@1": 0.167,
+      "Recall@3": 0.2,
+      "Recall@5": 0.367
+    },
+    "histologia_eval_250": {
+      "Recall@1": 0.133,
+      "Recall@3": 0.233,
+      "Recall@5": 0.267
+    }
+  },
+  "ragas": {
+    "histologia_eval_pagina": {
+      "context_precision": null,
+      "context_recall": null,
+      "faithfulness": null
+    },
+    "histologia_eval_500": {
+      "context_precision": null,
+      "context_recall": null,
+      "faithfulness": null
+    },
+    "histologia_eval_250": {
+      "context_precision": null,
+      "context_recall": null,
+      "faithfulness": null
+    }
+  }
+}
