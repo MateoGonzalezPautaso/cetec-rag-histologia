@@ -1,0 +1,297 @@
+{
+  "modelo_embedding": "CLIP ViT-B/32 (texto) + CONCH ViT-B/16 (imagen)",
+  "pdf": "histologia_completo.pdf",
+  "coleccion": "histologia_eval_pagina",
+  "metricas_clip": {
+    "R@1": 0.0,
+    "R@3": 0.034482758620689655,
+    "R@5": 0.06896551724137931
+  },
+  "metricas_conch": {
+    "R@1": 1.0,
+    "R@3": 1.0,
+    "R@5": 1.0
+  },
+  "fallas_clip": [
+    {
+      "pagina": 1,
+      "score": 0.3385,
+      "recupero": 33
+    },
+    {
+      "pagina": 2,
+      "score": 0.2875,
+      "recupero": 23
+    },
+    {
+      "pagina": 3,
+      "score": 0.3225,
+      "recupero": 23
+    },
+    {
+      "pagina": 4,
+      "score": 0.2973,
+      "recupero": 23
+    },
+    {
+      "pagina": 5,
+      "score": 0.2941,
+      "recupero": 17
+    },
+    {
+      "pagina": 6,
+      "score": 0.3182,
+      "recupero": 23
+    },
+    {
+      "pagina": 7,
+      "score": 0.3135,
+      "recupero": 10
+    },
+    {
+      "pagina": 8,
+      "score": 0.294,
+      "recupero": 10
+    },
+    {
+      "pagina": 9,
+      "score": 0.2972,
+      "recupero": 40
+    },
+    {
+      "pagina": 10,
+      "score": 0.2712,
+      "recupero": 23
+    },
+    {
+      "pagina": 11,
+      "score": 0.2825,
+      "recupero": 23
+    },
+    {
+      "pagina": 12,
+      "score": 0.2896,
+      "recupero": 23
+    },
+    {
+      "pagina": 13,
+      "score": 0.2949,
+      "recupero": 23
+    },
+    {
+      "pagina": 14,
+      "score": 0.2518,
+      "recupero": 47
+    },
+    {
+      "pagina": 15,
+      "score": 0.2761,
+      "recupero": 31
+    },
+    {
+      "pagina": 16,
+      "score": 0.2975,
+      "recupero": 23
+    },
+    {
+      "pagina": 17,
+      "score": 0.325,
+      "recupero": 40
+    },
+    {
+      "pagina": 18,
+      "score": 0.2899,
+      "recupero": 10
+    },
+    {
+      "pagina": 19,
+      "score": 0.3127,
+      "recupero": 17
+    },
+    {
+      "pagina": 20,
+      "score": 0.2871,
+      "recupero": 41
+    },
+    {
+      "pagina": 21,
+      "score": 0.2953,
+      "recupero": 23
+    },
+    {
+      "pagina": 22,
+      "score": 0.2857,
+      "recupero": 23
+    },
+    {
+      "pagina": 24,
+      "score": 0.3077,
+      "recupero": 10
+    },
+    {
+      "pagina": 25,
+      "score": 0.3269,
+      "recupero": 33
+    },
+    {
+      "pagina": 26,
+      "score": 0.3087,
+      "recupero": 23
+    },
+    {
+      "pagina": 27,
+      "score": 0.2847,
+      "recupero": 23
+    },
+    {
+      "pagina": 28,
+      "score": 0.2888,
+      "recupero": 10
+    },
+    {
+      "pagina": 29,
+      "score": 0.3125,
+      "recupero": 40
+    },
+    {
+      "pagina": 30,
+      "score": 0.3198,
+      "recupero": 10
+    },
+    {
+      "pagina": 31,
+      "score": 0.3131,
+      "recupero": 33
+    },
+    {
+      "pagina": 33,
+      "score": 0.2836,
+      "recupero": 23
+    },
+    {
+      "pagina": 34,
+      "score": 0.2849,
+      "recupero": 23
+    },
+    {
+      "pagina": 35,
+      "score": 0.3096,
+      "recupero": 23
+    },
+    {
+      "pagina": 36,
+      "score": 0.3254,
+      "recupero": 23
+    },
+    {
+      "pagina": 37,
+      "score": 0.3407,
+      "recupero": 23
+    },
+    {
+      "pagina": 38,
+      "score": 0.3041,
+      "recupero": 23
+    },
+    {
+      "pagina": 39,
+      "score": 0.3565,
+      "recupero": 23
+    },
+    {
+      "pagina": 40,
+      "score": 0.3017,
+      "recupero": 23
+    },
+    {
+      "pagina": 41,
+      "score": 0.3114,
+      "recupero": 33
+    },
+    {
+      "pagina": 42,
+      "score": 0.3276,
+      "recupero": 23
+    },
+    {
+      "pagina": 43,
+      "score": 0.3195,
+      "recupero": 23
+    },
+    {
+      "pagina": 44,
+      "score": 0.3288,
+      "recupero": 10
+    },
+    {
+      "pagina": 45,
+      "score": 0.298,
+      "recupero": 40
+    },
+    {
+      "pagina": 46,
+      "score": 0.2793,
+      "recupero": 23
+    },
+    {
+      "pagina": 47,
+      "score": 0.3126,
+      "recupero": 23
+    },
+    {
+      "pagina": 48,
+      "score": 0.3139,
+      "recupero": 23
+    },
+    {
+      "pagina": 49,
+      "score": 0.3168,
+      "recupero": 23
+    },
+    {
+      "pagina": 50,
+      "score": 0.312,
+      "recupero": 23
+    },
+    {
+      "pagina": 51,
+      "score": 0.3208,
+      "recupero": 23
+    },
+    {
+      "pagina": 52,
+      "score": 0.3202,
+      "recupero": 23
+    },
+    {
+      "pagina": 53,
+      "score": 0.3011,
+      "recupero": 23
+    },
+    {
+      "pagina": 54,
+      "score": 0.3124,
+      "recupero": 23
+    },
+    {
+      "pagina": 55,
+      "score": 0.3064,
+      "recupero": 23
+    },
+    {
+      "pagina": 56,
+      "score": 0.3163,
+      "recupero": 23
+    },
+    {
+      "pagina": 57,
+      "score": 0.3032,
+      "recupero": 23
+    },
+    {
+      "pagina": 58,
+      "score": 0.3207,
+      "recupero": 23
+    }
+  ]
+}
