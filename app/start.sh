@@ -152,6 +152,34 @@ for i in $(seq 1 $WAIT_SECONDS); do
     sleep 1
 done
 
+# ── Crear acceso directo en el escritorio ────────────────────────────
+DESKTOP_DIR=""
+for candidate in "$HOME/Desktop" "$HOME/Escritorio"; do
+    if [[ -d "$candidate" ]]; then
+        DESKTOP_DIR="$candidate"
+        break
+    fi
+done
+
+if [[ -n "$DESKTOP_DIR" ]]; then
+    SHORTCUT="${DESKTOP_DIR}/RAG Histología.desktop"
+    cat > "$SHORTCUT" <<EOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=RAG Histología
+Comment=Asistente de histología médica
+Exec=bash -c 'cd "${SCRIPT_DIR}" && ./start.sh'
+Icon=${SCRIPT_DIR}/client/favicon.ico
+Terminal=true
+Categories=Education;Science;
+EOF
+    chmod +x "$SHORTCUT"
+    # Marcar como confiable en GNOME (suprime el diálogo "archivo sin verificar")
+    gio set "$SHORTCUT" metadata::trusted true 2>/dev/null || true
+    ok "Acceso directo creado en: ${SHORTCUT}"
+fi
+
 # ── Abrir navegador ───────────────────────────────────────────────────
 if $OPEN_BROWSER; then
     xdg-open "$URL" >/dev/null 2>&1 || open "$URL" >/dev/null 2>&1 || true
