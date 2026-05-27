@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Histología Qdrant — Chat</title>
+    <link rel="stylesheet" href="/style.css?v=2">
+
+<body>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <span class="header-logo">🔬</span>
+            <div>
+                <div class="header-title">RAG Histología Qdrant</div>
+                <div class="header-subtitle">MiniLM + UNI/PLIP · LangGraph · A2UI v4.2</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="status-pill" onclick="toggleStatusPanel()" title="Ver estado del sistema">
+                <div class="status-dot" id="status-dot"></div>
+                <span class="status-text" id="status-text">Conectando...</span>
+            </button>
+            <button class="header-btn" onclick="toggleTemario()" title="Ver temario">📚 Temario</button>
+            <button class="header-btn" onclick="limpiarImagen()" title="Limpiar imagen activa">🗑️ Imagen</button>
+        </div>
+    </header>
+
+    <div class="status-panel" id="status-panel">
+        <div class="status-panel-title">Estado del sistema</div>
+        <div class="status-row"><span>Sistema</span><strong id="diag-sistema">Conectando...</strong></div>
+        <div class="status-row"><span>Base de datos</span><strong id="diag-qdrant">No verificado</strong></div>
+        <div class="status-row"><span>Modelo</span><strong id="diag-modelo">No verificado</strong></div>
+        <div class="status-row"><span>Cuota</span><strong id="diag-cuota">No verificada</strong></div>
+        <div class="status-row muted"><span>Temario</span><strong id="diag-temas">0 temas</strong></div>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages-container" id="messages-container">
+        <div class="welcome-screen" id="welcome-screen">
+            <div class="welcome-icon">🧬</div>
+            <h2 class="welcome-title">Asistente de Histología</h2>
+            <p class="welcome-desc">
+                Base actual: arteria muscular y testículo. Las respuestas se apoyan en el manual cargado
+                y muestran fuentes cuando hay evidencia disponible.
+            </p>
+                <div class="scope-card">
+                <span>Disponible: arch3.pdf · arteria muscular</span>
+                <span>Disponible: arch4.pdf · testículo</span>
+                <span>Podés pedir imágenes escribiendo "mostrame imágenes de..."</span>
+                <span>Pegá imágenes con Ctrl+V</span>
+            </div>
+            <div class="welcome-chips">
+                <div class="chip" onclick="sendChip(this)">¿Qué capas se identifican en una arteria muscular?</div>
+                <div class="chip" onclick="sendChip(this)">¿Cómo se reconoce la lámina elástica interna?</div>
+                <div class="chip" onclick="sendChip(this)">¿Qué características tiene la célula de Sertoli?</div>
+                <div class="chip" onclick="sendChip(this)">¿Qué función cumplen las células de Leydig?</div>
+                <div class="chip chip-image" onclick="sendImageChip(this)">Mostrame imágenes de arteria muscular</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Temario Overlay -->
+    <div class="temario-overlay" id="temario-overlay" onclick="toggleTemario()"></div>
+    <div class="temario-panel" id="temario-panel">
+        <div class="temario-header">
+            <h3>📚 Temario de Histología</h3>
+            <button class="temario-close" onclick="toggleTemario()">×</button>
+        </div>
+        <div class="temario-list" id="temario-list">
+            <p style="color: var(--text-muted); font-size: 0.85rem;">Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Input area -->
+    <div class="input-area">
+        <div class="image-preview-bar" id="image-preview-bar">
+            <img class="image-preview-thumb" id="image-thumb" src="" alt="preview">
+            <div class="image-preview-info">
+                <div class="image-preview-name" id="image-name">imagen.png</div>
+                <div class="image-preview-size" id="image-size">0 KB</div>
+            </div>
+            <button class="image-preview-remove" onclick="removeImage()" title="Quitar imagen">×</button>
+        </div>
+        <div class="input-row">
+            <div class="input-actions">
+                <button class="action-btn" onclick="document.getElementById('image-input').click()"
+                    title="Subir imagen propia para analizar">
+                    🖼️
+                </button>
+                <input type="file" id="image-input" accept="image/*" onchange="handleImageSelect(event)">
+            </div>
+            <div class="input-wrapper">
+                <textarea id="chat-input" rows="1" placeholder="Escribí tu pregunta o pegá una imagen con Ctrl+V..."
+                    onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+            </div>
+            <div class="input-actions">
+                <button class="action-btn send" id="send-btn" onclick="sendMessage()" title="Enviar">
+                    ➤
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js?v=2"></script>
+</body>
+
+</html>

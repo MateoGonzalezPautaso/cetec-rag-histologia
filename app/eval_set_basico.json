@@ -1,0 +1,32 @@
+[
+  {
+    "id": "arteria_muscular_capas",
+    "query": "Que capas se identifican en una arteria muscular y que estructuras tiene cada una?",
+    "requires_citation": true,
+    "expected_terms": ["arteria muscular", "túnica íntima", "túnica media", "túnica adventicia", "endotelio"]
+  },
+  {
+    "id": "lamina_elastica_interna",
+    "query": "Como se reconoce la lamina elastica interna en la arteria muscular?",
+    "requires_citation": true,
+    "expected_terms": ["lámina elástica interna", "endotelio", "ondulada", "rosa"]
+  },
+  {
+    "id": "celulas_leydig",
+    "query": "Donde se ubican las celulas de Leydig y que rasgos histologicos presentan?",
+    "requires_citation": true,
+    "expected_terms": ["Leydig", "intersticio", "núcleo", "citoplasma"]
+  },
+  {
+    "id": "tejido_muscular_liso",
+    "query": "Que caracteristicas histologicas tiene el tejido muscular liso?",
+    "requires_citation": true,
+    "expected_terms": ["muscular liso", "fusiformes", "nucleo"]
+  },
+  {
+    "id": "fuera_dominio",
+    "query": "Explicame como resolver una integral por partes",
+    "requires_citation": false,
+    "expected_terms": ["fuera", "dominio"]
+  }
+]
