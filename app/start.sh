@@ -174,8 +174,8 @@ Version=1.0
 Type=Application
 Name=RAG Histología
 Comment=Asistente de histología médica
-Exec=xdg-open ${URL}
-Terminal=false
+Exec=bash ${SCRIPT_DIR}/launch.sh
+Terminal=true
 Categories=Education;Science;
 EOF
     chmod +x "$SHORTCUT"
