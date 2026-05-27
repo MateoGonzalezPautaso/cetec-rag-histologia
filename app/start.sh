@@ -71,11 +71,12 @@ echo ""
 echo "Verificando configuración..."
 
 if [[ ! -f ".env" ]]; then
-    fail "Archivo .env no encontrado."
-    if [[ -f "../.env.example" ]]; then
-        echo "  Crear con: cp ../.env.example .env  y luego completar las claves."
+    fail "Archivo .env no encontrado en ${SCRIPT_DIR}/.env"
+    if [[ -f "${SCRIPT_DIR}/../.env.example" ]]; then
+        echo "  Crear con: cp ${SCRIPT_DIR}/../.env.example ${SCRIPT_DIR}/.env"
+        echo "  Luego completar las claves en ${SCRIPT_DIR}/.env"
     else
-        echo "  Crear .env con: GROQ_API_KEY, QDRANT_URL, QDRANT_KEY, HF_TOKEN"
+        echo "  Crear ${SCRIPT_DIR}/.env con: GROQ_API_KEY, QDRANT_URL, QDRANT_KEY, HF_TOKEN"
     fi
     exit 1
 fi

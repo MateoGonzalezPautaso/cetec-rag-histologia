@@ -10,15 +10,15 @@ Sistema RAG multimodal para histología médica. Permite hacer preguntas sobre u
 
 ```bash
 # 1. Copiar y completar el archivo de configuración
-cp ../.env.example .env
-# Editar .env con tus claves (ver sección Configuración)
+cp .env.example app/.env
+# Editar app/.env con tus claves (ver sección Configuración)
 
-# 2. Poner los PDFs del manual en pdf/
-mkdir -p pdf
-# cp tus_manuales.pdf pdf/
+# 2. Poner los PDFs del manual en app/pdf/
+mkdir -p app/pdf
+# cp tu_manual.pdf app/pdf/
 
 # 3. Ejecutar el script de inicio
-./start.sh
+cd app && ./start.sh
 ```
 
 El script instala dependencias, inicia el servidor y abre el navegador automáticamente en `http://localhost:10007`.
@@ -38,25 +38,19 @@ El script instala dependencias, inicia el servidor y abre el navegador automáti
 
 ## Configuración
 
-Copiar `.env.example` a `.env` y completar:
+Copiar `.env.example` a `app/.env` y completar las claves:
 
-```env
-# LLM principal (REQUERIDO)
-GROQ_API_KEY=gsk_...
-
-# Base vectorial Qdrant Cloud (REQUERIDO)
-# Crear cluster gratis en https://cloud.qdrant.io/
-QDRANT_URL=https://tu-cluster.region.gcp.cloud.qdrant.io:6333
-QDRANT_KEY=tu-api-key-de-qdrant
-
-# Modelos de visión UNI y PLIP (REQUERIDO)
-# Requiere aceptar los términos en https://huggingface.co/MahmoodLab/UNI
-HF_TOKEN=hf_...
-
-# Observabilidad LangSmith (OPCIONAL)
-LANGSMITH_API_KEY=ls__...
-LANGSMITH_PROJECT=rag-histologia
+```bash
+cp .env.example app/.env
 ```
+
+| Variable | Requerida | Descripción | Dónde obtenerla |
+|---|---|---|---|
+| `GROQ_API_KEY` | ✅ | LLM principal (Llama-4-Scout) | https://console.groq.com/keys |
+| `QDRANT_URL` | ✅ | URL del cluster Qdrant Cloud | https://cloud.qdrant.io/ |
+| `QDRANT_KEY` | ✅ | API key de Qdrant Cloud | https://cloud.qdrant.io/ |
+| `HF_TOKEN` | ✅ | Descarga modelos UNI y PLIP — requiere aceptar los términos del modelo | https://huggingface.co/settings/tokens |
+| `LANGSMITH_API_KEY` | ❌ | Trazabilidad del pipeline. El sistema funciona sin esto | https://smith.langchain.com/ |
 
 ---
 
@@ -76,6 +70,8 @@ El indexado solo corre si Qdrant está vacío. Para forzar una reindexación: bo
 ## Ejecutar manualmente
 
 ```bash
+cd app
+
 # Instalar dependencias
 uv sync
 
@@ -156,7 +152,11 @@ inicializar → procesar_imagen? → clasificar → generar_consulta
 
 ## Evaluación
 
+Todos los comandos se ejecutan desde dentro de `app/`:
+
 ```bash
+cd app
+
 # Smoke test (rápido, no requiere LLM juez)
 uv run python eval_reliability.py --base-url http://localhost:10007 \
   --set eval_set_basico.json --output eval_reliability_report.json
