@@ -183,11 +183,6 @@ function sendChip(el) {
     sendMessage();
 }
 
-function sendImageChip(el) {
-    chatInput.value = el.textContent;
-    sendMessage();
-}
-
 // ── Keyboard ────────────────────────────────────────────────────────
 function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {

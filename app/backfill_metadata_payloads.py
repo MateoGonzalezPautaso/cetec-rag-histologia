@@ -5,22 +5,17 @@ derivados por reglas deterministicas: dominios, organos, celulas y temas.
 """
 
 import os
-import unicodedata
+import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from qdrant_client import models
 
-
 load_dotenv()
 
-COLLECTION_CHUNKS = "histo_chunks"
-COLLECTION_IMAGENES = "histo_imagenes"
-
-
-def normalizar(texto: str) -> str:
-    texto = (texto or "").lower()
-    return "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
+sys.path.insert(0, str(Path(__file__).parent))
+from src.config import COLLECTION_CHUNKS, COLLECTION_IMAGENES, normalizar
 
 
 def extraer_metadatos(texto: str) -> dict:

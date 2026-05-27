@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAG Histología Qdrant — Chat</title>
     <link rel="stylesheet" href="/style.css?v=2">
+</head>
 
 <body>
 
@@ -43,21 +44,20 @@
             <div class="welcome-icon">🧬</div>
             <h2 class="welcome-title">Asistente de Histología</h2>
             <p class="welcome-desc">
-                Base actual: arteria muscular y testículo. Las respuestas se apoyan en el manual cargado
-                y muestran fuentes cuando hay evidencia disponible.
+                Las respuestas se basan exclusivamente en el manual cargado y muestran fuentes cuando hay evidencia disponible.
             </p>
-                <div class="scope-card">
-                <span>Disponible: arch3.pdf · arteria muscular</span>
-                <span>Disponible: arch4.pdf · testículo</span>
-                <span>Podés pedir imágenes escribiendo "mostrame imágenes de..."</span>
+            <div class="scope-card">
+                <span>Podés hacer preguntas sobre cualquier tema del manual</span>
+                <span>Pedí imágenes escribiendo "mostrame imágenes de..."</span>
+                <span>Subí una imagen histológica para análisis comparativo</span>
                 <span>Pegá imágenes con Ctrl+V</span>
             </div>
             <div class="welcome-chips">
-                <div class="chip" onclick="sendChip(this)">¿Qué capas se identifican en una arteria muscular?</div>
-                <div class="chip" onclick="sendChip(this)">¿Cómo se reconoce la lámina elástica interna?</div>
-                <div class="chip" onclick="sendChip(this)">¿Qué características tiene la célula de Sertoli?</div>
-                <div class="chip" onclick="sendChip(this)">¿Qué función cumplen las células de Leydig?</div>
-                <div class="chip chip-image" onclick="sendImageChip(this)">Mostrame imágenes de arteria muscular</div>
+                <div class="chip" onclick="sendChip(this)">¿Qué temas cubre el manual?</div>
+                <div class="chip" onclick="sendChip(this)">¿Qué tipos de tejido se estudian?</div>
+                <div class="chip" onclick="sendChip(this)">¿Cómo se identifican los distintos tipos de células?</div>
+                <div class="chip" onclick="sendChip(this)">¿Qué tinciones se utilizan en histología?</div>
+                <div class="chip chip-image" onclick="sendChip(this)">Mostrame imágenes del manual</div>
             </div>
         </div>
     </div>

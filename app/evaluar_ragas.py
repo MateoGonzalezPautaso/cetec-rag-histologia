@@ -1,6 +1,6 @@
 """
-Evaluación RAGAS del RAG Histología Qdrant v4.2 (Vuelta)
-========================================================
+Evaluación RAGAS del RAG Histología Qdrant v5.0
+================================================
 Ejecuta el pipeline RAG completo contra un Golden Set de preguntas
 con ground truths extraídos del manual, y evalúa la calidad usando
 métricas RAGAS: faithfulness, context_precision, context_recall,
@@ -14,7 +14,6 @@ Uso:
 """
 
 import asyncio
-import importlib.util
 import json
 import os
 import sys
@@ -24,18 +23,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-# ── Importar qdrant-histo.py via importlib (mismo patrón que server.py) ──
-_HISTO_PATH = Path(__file__).parent / "qdrant-histo.py"
-spec = importlib.util.spec_from_file_location("qdrant_histo", str(_HISTO_PATH))
-qdrant_histo = importlib.util.module_from_spec(spec)
-
-_original_argv = sys.argv
-sys.argv = ["qdrant-histo.py"]
-spec.loader.exec_module(qdrant_histo)
-sys.argv = _original_argv
-
-AsistenteHistologiaQdrant = qdrant_histo.AsistenteHistologiaQdrant
-DIRECTORIO_PDFS = qdrant_histo.DIRECTORIO_PDFS
+sys.path.insert(0, str(Path(__file__).parent))
+from src.assistant import AsistenteHistologiaQdrant
+from src.config import DIRECTORIO_PDFS
+from src.graph import AgentState
 
 # ═══════════════════════════════════════════════════════════════════════
 # GOLDEN SET — 20 preguntas con ground truth del manual
@@ -149,8 +140,6 @@ async def ejecutar_consulta_con_contexto(asistente, pregunta: str) -> dict:
     Ejecuta el pipeline RAG y captura tanto la respuesta como los
     contextos intermedios necesarios para RAGAS.
     """
-    AgentState = qdrant_histo.AgentState
-
     initial_state = AgentState(
         messages=[],
         consulta_texto=pregunta,
@@ -183,7 +172,6 @@ async def ejecutar_consulta_con_contexto(asistente, pregunta: str) -> dict:
         analisis_comparativo=None,
         estructura_identificada=None,
         similitud_semantica_dominio=0.0,
-        confianza_baja=False,
         mostrar_imagenes=False,
         imagenes_para_mostrar=[],
         historial_conversacional="",
@@ -618,7 +606,7 @@ async def evaluar(limit: int = 0, skip_ragas: bool = False, indices: list[int] |
 
 async def evaluar_imagenes():
     """
-    Diagnóstico imagen→imagen: compara CONCH vs UNI.
+    Diagnóstico imagen→imagen: compara CLIP vs UNI.
     Convierte cada página del PDF a imagen, embede con ambos modelos,
     y mide Recall@K para verificar retrieval visual.
     """
@@ -630,7 +618,7 @@ async def evaluar_imagenes():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"\n{'=' * 60}")
-    print(f"🖼️  EVALUACIÓN IMAGEN → IMAGEN (CONCH vs UNI)")
+    print(f"🖼️  EVALUACIÓN IMAGEN → IMAGEN (CLIP vs UNI)")
     print(f"   Device: {device}")
     print(f"{'=' * 60}\n")
 
@@ -654,11 +642,6 @@ async def evaluar_imagenes():
     modelo_configs.append({
         "nombre": "CLIP",
         "loader": lambda: _load_clip(device),
-    })
-
-    modelo_configs.append({
-        "nombre": "CONCH",
-        "loader": lambda: _load_conch(device),
     })
 
     modelo_configs.append({
@@ -775,12 +758,6 @@ def _load_clip(device):
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
     return (lambda img, m=model, p=processor: _embed_clip(img, m, p, device), [model, processor])
 
-def _load_conch(device):
-    from conch.open_clip_custom import create_model_from_pretrained
-    model, preprocess = create_model_from_pretrained("conch_ViT-B-16", "hf_hub:MahmoodLab/conch")
-    model = model.to(device).eval()
-    return (lambda img, m=model, p=preprocess: _embed_conch(img, m, p, device), [model, preprocess])
-
 def _load_uni(device):
     import timm
     from timm.data import resolve_data_config
@@ -790,18 +767,6 @@ def _load_uni(device):
     config = resolve_data_config(model.pretrained_cfg, model=model)
     transform = create_transform(**config)
     return (lambda img, m=model, t=transform: _embed_uni(img, m, t, device), [model, transform])
-
-def _embed_conch(pil_image, model, preprocess, device):
-    import torch
-    import numpy as np
-    try:
-        image_tensor = preprocess(pil_image).unsqueeze(0).to(device)
-        with torch.inference_mode():
-            features = model.encode_image(image_tensor, proj_contrast=False, normalize=False)
-        return features.cpu().numpy().flatten()
-    except Exception as e:
-        print(f"⚠️ Error embed CONCH: {e}")
-        return np.zeros(512)
 
 def _embed_uni(pil_image, model, transform, device):
     import torch
@@ -978,7 +943,7 @@ async def evaluar_solo_ragas(limit: int = 0, indices: list[int] | None = None):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Evaluación RAGAS del RAG Histología v4.2")
+    parser = argparse.ArgumentParser(description="Evaluación RAGAS del RAG Histología v5.0")
     parser.add_argument("--limit", type=int, default=0,
                         help="Limitar a N preguntas (0 = todas)")
     parser.add_argument("--no-ragas", action="store_true",
@@ -988,7 +953,7 @@ if __name__ == "__main__":
     parser.add_argument("--indices", type=str, default="",
                         help="Indices 1-based separados por coma (ej: 1,5,9)")
     parser.add_argument("--imagenes", action="store_true",
-                        help="Ejecutar diagnóstico imagen→imagen (CONCH vs UNI)")
+                        help="Ejecutar diagnóstico imagen→imagen (CLIP vs UNI)")
     args = parser.parse_args()
 
     async def main():
