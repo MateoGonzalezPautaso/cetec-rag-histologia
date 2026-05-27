@@ -379,10 +379,8 @@ class ExtractorEntidades:
                 )),
                 HumanMessage(content=texto[:500]),
             ])
-            import re as _re
-            texto_resp = _re.sub(r"```json\s*|\s*```", "", resp.content.strip())
-            import json as _json
-            resultado = _json.loads(texto_resp)
+            texto_resp = re.sub(r"```json\s*|\s*```", "", resp.content.strip())
+            resultado = json.loads(texto_resp)
             reglas = self._extraer_reglas(texto)
             return {
                 "tejidos": self._merge_unicos([t.lower() for t in resultado.get("tejidos", [])[:3]], reglas.get("tejidos", [])),

@@ -9,7 +9,6 @@ from typing import Optional
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
 SIMILARITY_THRESHOLD = 0.70
-SIMILAR_IMG_THRESHOLD = 0.85
 
 # ── Embedding dimensions ──────────────────────────────────────────────────────
 DIM_TEXTO = 384
@@ -28,8 +27,6 @@ COLLECTION_IMAGENES = "histo_imagenes"
 INDEX_TEXTO = "histo_text"
 INDEX_UNI = "histo_img_uni"
 INDEX_PLIP = "histo_img_plip"
-
-NEO4J_GRAPH_DEPTH = 2
 
 # ── Histology domain knowledge ────────────────────────────────────────────────
 FEATURES_DISCRIMINATORIAS = [

@@ -142,7 +142,7 @@ Responde ÚNICAMENTE en JSON válido (sin backticks):
                 "tema_encontrado": data.get("tema_encontrado"),
                 "motivo": data.get("motivo", ""),
                 "similitud_dominio": sim,
-                "metodo": "llm" if sim < umbral_efectivo * 0.49 else "combinado",
+                "metodo": "llm",
             }
         except Exception as e:
             print(f"   ⚠️ Error clasificador LLM: {e}")

@@ -24,7 +24,7 @@ from langgraph.graph import END, START, StateGraph
 
 from .classifier import ClasificadorSemantico
 from .config import (
-    COLLECTION_IMAGENES, DIRECTORIO_IMAGENES, DIRECTORIO_PDFS,
+    COLLECTION_CHUNKS, COLLECTION_IMAGENES, DIRECTORIO_IMAGENES, DIRECTORIO_PDFS,
     FEATURES_DISCRIMINATORIAS, SIMILARITY_THRESHOLD,
     _safe, normalizar,
 )
@@ -165,7 +165,6 @@ class AsistenteHistologiaQdrant:
 
         if tiene_imagen_nueva:
             print("🖼️ Modo multimodal (imagen nueva)")
-            state["trayectoria"].append({"nodo": "Router:modo", "modo": "con_imagen"})
             return "con_imagen"
 
         if tiene_imagen_memoria:
@@ -186,13 +185,11 @@ class AsistenteHistologiaQdrant:
                 print(f"   🤖 Clasificador de modo: '{consulta}' → {resultado}")
                 if resultado.startswith("IMAGEN"):
                     print("🖼️ Modo multimodal (imagen en memoria + referencia en consulta)")
-                    state["trayectoria"].append({"nodo": "Router:modo", "modo": "con_imagen"})
                     return "con_imagen"
             except Exception as e:
                 print(f"   ⚠️ Error clasificador de modo, fallback a texto: {e}")
 
         print("📝 Modo solo texto")
-        state["trayectoria"].append({"nodo": "Router:modo", "modo": "solo_texto"})
         return "solo_texto"
 
     def _route_por_temario(self, state: AgentState) -> str:
@@ -1229,8 +1226,8 @@ class AsistenteHistologiaQdrant:
     ):
         if not forzar:
             try:
-                n_chunks = self.qdrant_store.client.count(collection_name="histo_chunks").count
-                n_imgs = self.qdrant_store.client.count(collection_name="histo_imagenes").count
+                n_chunks = self.qdrant_store.client.count(collection_name=COLLECTION_CHUNKS).count
+                n_imgs = self.qdrant_store.client.count(collection_name=COLLECTION_IMAGENES).count
                 if n_chunks > 0 and n_imgs > 0:
                     print(f"✅ BD ya poblada ({n_chunks} chunks, {n_imgs} imágenes). Saltando indexación.")
                     return
@@ -1405,7 +1402,7 @@ class AsistenteHistologiaQdrant:
                 "tiene_imagen_nueva": imagen_path is not None,
                 "tiene_imagen_activa": tiene_imagen_activa,
                 "consulta": consulta_texto[:100],
-                "version": "4.2",
+                "version": "5.0",
             },
         }
 

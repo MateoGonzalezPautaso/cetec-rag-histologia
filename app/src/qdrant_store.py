@@ -3,7 +3,6 @@ Qdrant vector store: schema creation, upsert, and all search strategies.
 """
 
 import os
-import unicodedata
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -17,15 +16,9 @@ from .config import (
     COLLECTION_CHUNKS, COLLECTION_IMAGENES,
     DIM_IMG_PLIP, DIM_IMG_UNI, DIM_TEXTO,
     INDEX_PLIP, INDEX_TEXTO, INDEX_UNI,
+    normalizar as _sin_tildes,
 )
 from .llm import embed_query_con_reintento
-
-
-def _sin_tildes(s: str) -> str:
-    return "".join(
-        c for c in unicodedata.normalize("NFD", s)
-        if unicodedata.category(c) != "Mn"
-    )
 
 
 class QdrantVectorStore:
