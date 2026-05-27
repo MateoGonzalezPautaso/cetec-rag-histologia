@@ -601,7 +601,7 @@ async def evaluar(limit: int = 0, skip_ragas: bool = False, indices: list[int] |
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# EVALUACIÓN IMAGEN → IMAGEN (CONCH vs UNI)
+# EVALUACIÓN IMAGEN → IMAGEN (CLIP vs UNI)
 # ═══════════════════════════════════════════════════════════════════════
 
 async def evaluar_imagenes():
