@@ -17,7 +17,6 @@ from .config import (
     COLLECTION_CHUNKS, COLLECTION_IMAGENES,
     DIM_IMG_PLIP, DIM_IMG_UNI, DIM_TEXTO,
     INDEX_PLIP, INDEX_TEXTO, INDEX_UNI,
-    SIMILAR_IMG_THRESHOLD,
 )
 from .llm import embed_query_con_reintento
 
@@ -707,12 +706,3 @@ class QdrantVectorStore:
         )
         return final[:15]
 
-    # Stubs for graph-compat (Qdrant has no graph traversal)
-    async def expandir_vecindad(self, node_ids: list, depth: int = 1) -> list:
-        return []
-
-    async def busqueda_camino_semantico(self, tejido_origen: str, tejido_destino: str) -> list:
-        return []
-
-    async def crear_relaciones_similitud(self, umbral: float = SIMILAR_IMG_THRESHOLD):
-        pass

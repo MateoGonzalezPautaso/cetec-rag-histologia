@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import fitz  # PyMuPDF
 import torch
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
@@ -24,7 +25,7 @@ from langgraph.graph import END, START, StateGraph
 from .classifier import ClasificadorSemantico
 from .config import (
     COLLECTION_IMAGENES, DIRECTORIO_IMAGENES, DIRECTORIO_PDFS,
-    FEATURES_DISCRIMINATORIAS, SIMILARITY_THRESHOLD, SIMILAR_IMG_THRESHOLD,
+    FEATURES_DISCRIMINATORIAS, SIMILARITY_THRESHOLD,
     _safe, normalizar,
 )
 from .embeddings import PlipWrapper, UniWrapper
@@ -43,8 +44,6 @@ class AsistenteHistologiaQdrant:
     SIMILARITY_THRESHOLD = SIMILARITY_THRESHOLD
 
     def __init__(self):
-        self._setup_apis()
-
         self.llm = None
         self.embeddings = None
         self.uni: Optional[UniWrapper] = None
@@ -65,11 +64,7 @@ class AsistenteHistologiaQdrant:
         self._ultimo_resultado: dict = {}
 
         self.device = self._detect_device()
-        print(f"✅ AsistenteHistologiaQdrant v4.2 inicializado en {self.device}")
-
-    def _setup_apis(self):
-        os.environ["GOOGLE_API_KEY"] = userdata.get("GOOGLE_API_KEY") or ""
-        print("✅ APIs configuradas")
+        print(f"✅ AsistenteHistologiaQdrant v5.0 inicializado en {self.device}")
 
     def _detect_device(self) -> str:
         if not torch.cuda.is_available():
@@ -211,7 +206,7 @@ class AsistenteHistologiaQdrant:
     # ── Nodes ─────────────────────────────────────────────────────────────────
 
     async def _nodo_inicializar(self, state: AgentState) -> AgentState:
-        print("📝 Inicializando flujo v4.2...")
+        print("📝 Inicializando flujo v5.0...")
         consulta_original = state.get("consulta_texto", "")
         historial = self.memoria.get_history_for_prompt(5)
         state["historial_conversacional"] = historial
@@ -447,12 +442,6 @@ class AsistenteHistologiaQdrant:
             top_k=10,
             incluir_imagenes_texto=pide_visual,
         )
-
-        tejidos = state.get("entidades_consulta", {}).get("tejidos", [])
-        if len(tejidos) >= 2:
-            camino = await self.qdrant_store.busqueda_camino_semantico(tejidos[0], tejidos[1])
-            if camino:
-                resultados.extend(camino)
 
         state["resultados_busqueda"] = resultados
         print(f"✅ {len(resultados)} resultados")
@@ -714,7 +703,7 @@ class AsistenteHistologiaQdrant:
         t0 = time.time()
         es_solo_texto = not state.get("tiene_imagen", False)
         modo_str = "TEXTO" if es_solo_texto else "MULTIMODAL"
-        print(f"💭 Generando respuesta v4.2 [{modo_str}]...")
+        print(f"💭 Generando respuesta v5.0 [{modo_str}]...")
 
         imagenes_para_mostrar = state.get("imagenes_para_mostrar", [])
         tiene_imgs_mostrar = state.get("mostrar_imagenes", False) and len(imagenes_para_mostrar) > 0
@@ -1035,7 +1024,7 @@ class AsistenteHistologiaQdrant:
                 "imagenes_para_mostrar": state.get("imagenes_para_mostrar", []),
             }, f, indent=4, ensure_ascii=False)
 
-        print(f"✅ Flujo v4.2 completado en {total}s")
+        print(f"✅ Flujo v5.0 completado en {total}s")
         if state.get("estructura_identificada"):
             print(f"   → Estructura: {state['estructura_identificada']}")
         return state
@@ -1342,7 +1331,6 @@ class AsistenteHistologiaQdrant:
             except Exception as e:
                 print(f"  ❌ Imagen extra {img_path}: {e}")
 
-        await self.qdrant_store.crear_relaciones_similitud(SIMILAR_IMG_THRESHOLD)
         print("✅ Indexación Qdrant completada")
 
     # ── PDF utilities ─────────────────────────────────────────────────────────
@@ -1382,7 +1370,7 @@ class AsistenteHistologiaQdrant:
         tiene_imagen_activa = self.memoria.tiene_imagen_previa() or bool(imagen_path)
 
         print(f"\n{'='*70}")
-        print(f"🔬 RAG Histología Qdrant v4.2 | umbral={self.SIMILARITY_THRESHOLD}")
+        print(f"🔬 RAG Histología Qdrant v5.0 | umbral={self.SIMILARITY_THRESHOLD}")
         print(f"   Texto:          {consulta_texto}")
         print(f"   Imagen turno:   {imagen_path or 'ninguna'}")
         print(f"   Imagen memoria: {self.memoria.get_imagen_activa() or 'ninguna'}")
@@ -1404,15 +1392,15 @@ class AsistenteHistologiaQdrant:
             tema_valido=True, tema_encontrado=None,
             imagenes_recuperadas=[], imagenes_texto_map={},
             analisis_comparativo=None, estructura_identificada=None,
-            similitud_semantica_dominio=0.0, confianza_baja=False,
+            similitud_semantica_dominio=0.0,
             mostrar_imagenes=False, imagenes_para_mostrar=[],
             historial_conversacional="",
         )
 
         config = {
             "configurable": {"thread_id": user_id},
-            "run_name": f"consulta-qdrant-v4.2-{user_id}",
-            "tags": ["rag", "histologia", "qdrant", "v4.2"],
+            "run_name": f"consulta-qdrant-v5.0-{user_id}",
+            "tags": ["rag", "histologia", "qdrant", "v5.0"],
             "metadata": {
                 "tiene_imagen_nueva": imagen_path is not None,
                 "tiene_imagen_activa": tiene_imagen_activa,

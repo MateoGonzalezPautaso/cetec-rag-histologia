@@ -10,14 +10,13 @@ import hashlib
 import json
 import os
 import re
-import unicodedata
 from typing import Any, Dict, List, Optional
 
 import fitz  # PyMuPDF
 from langchain_core.messages import HumanMessage, SystemMessage
 from PIL import Image
 
-from .config import DIRECTORIO_IMAGENES, DIM_TEXTO
+from .config import DIRECTORIO_IMAGENES, DIM_TEXTO, normalizar as _normalizar
 from .embeddings import ImageExtractionConfig
 from .llm import invoke_con_reintento
 
@@ -427,12 +426,3 @@ class ExtractorEntidades:
             entidades[key] = reglas.get(key, [])
         return entidades
 
-
-# ── Internal helper ───────────────────────────────────────────────────────────
-
-def _normalizar(texto: str) -> str:
-    texto = str(texto or "").lower()
-    return "".join(
-        c for c in unicodedata.normalize("NFD", texto)
-        if unicodedata.category(c) != "Mn"
-    )

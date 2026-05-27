@@ -142,7 +142,7 @@ def setup_langsmith():
         "LANGCHAIN_TRACING_V2": "true",
         "LANGCHAIN_API_KEY": userdata.get("LANGSMITH_API_KEY"),
         "LANGCHAIN_ENDPOINT": "https://api.smith.langchain.com",
-        "LANGCHAIN_PROJECT": "rag_histologia_neo4j_v4",
+        "LANGCHAIN_PROJECT": userdata.get("LANGSMITH_PROJECT") or "rag-histologia",
     }
     for key, value in config.items():
         if value:

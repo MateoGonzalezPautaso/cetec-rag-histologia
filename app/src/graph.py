@@ -40,7 +40,6 @@ class AgentState(TypedDict):
     analisis_comparativo:        Optional[str]
     estructura_identificada:     Optional[str]
     similitud_semantica_dominio: float
-    confianza_baja:              bool
     mostrar_imagenes:            bool
     imagenes_para_mostrar:       List[Dict[str, str]]
     historial_conversacional:    str

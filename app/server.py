@@ -89,7 +89,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="RAG Histología Qdrant + A2UI",
     description="Sistema RAG Multimodal de Histología — Fullstack",
-    version="4.1.0",
+    version="5.0.0",
     lifespan=lifespan,
 )
 
@@ -214,8 +214,6 @@ async def post_chat(req: ChatRequest):
                 if not ext:
                     ext = ".png"
             
-            # Nombre de archivo único
-            import uuid
             nombre_archivo = f"upload_{uuid.uuid4().hex[:8]}{ext}"
             imagen_path = str(chat_img_dir / nombre_archivo)
             

@@ -39,7 +39,8 @@ class SemanticMemory:
         self.turno_actual: int = 0
 
         self._collection = "memoria_histo"
-        self._qdrant = QdrantClient(path="./qdrant_memoria")
+        _qdrant_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qdrant_memoria")
+        self._qdrant = QdrantClient(path=_qdrant_dir)
         self._ensure_collection()
 
     def _ensure_collection(self):
