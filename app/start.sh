@@ -7,7 +7,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT=10007
 OPEN_BROWSER=true
-LOG_FILE="/tmp/rag-histologia.log"
 URL="http://localhost:${PORT}"
 
 # ── Argumentos ────────────────────────────────────────────────────────
@@ -18,6 +17,8 @@ while [[ $# -gt 0 ]]; do
         *) echo "Uso: $0 [--port N] [--no-browser]"; exit 1 ;;
     esac
 done
+
+LOG_FILE="/tmp/rag-histologia-${PORT}.log"
 
 cd "$SCRIPT_DIR"
 
@@ -30,6 +31,9 @@ fail() { echo -e "${RED}✗${NC} $1"; }
 echo ""
 echo "🔬 RAG Histología — iniciando..."
 echo ""
+
+# ── Extender PATH para uv (instalado por el script oficial de astral.sh) ──
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
 # ── Si ya está corriendo, solo abrir el browser ───────────────────────
 if curl -fsS "${URL}/api/status" >/dev/null 2>&1; then
@@ -46,6 +50,7 @@ echo "Verificando dependencias..."
 if ! command -v uv &>/dev/null; then
     fail "uv no está instalado."
     echo "  Instalarlo con: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    echo "  Luego cerrar y volver a abrir la terminal."
     exit 1
 fi
 ok "uv $(uv --version 2>/dev/null | head -1)"
@@ -106,16 +111,12 @@ fi
 # ── Instalar dependencias Python ──────────────────────────────────────
 echo ""
 echo "Instalando dependencias Python..."
-if ! uv sync --quiet 2>/dev/null; then
-    echo "  (primera instalación, puede tardar varios minutos...)"
-    uv sync
-fi
+uv sync
 ok "Dependencias instaladas"
 
 # ── Iniciar servidor en background ───────────────────────────────────
 echo ""
 echo "Iniciando servidor (log: ${LOG_FILE})..."
-mkdir -p "$(dirname "$LOG_FILE")"
 
 nohup uv run uvicorn server:app --host 0.0.0.0 --port "${PORT}" \
     > "$LOG_FILE" 2>&1 &
@@ -125,6 +126,7 @@ echo "  PID: ${SERVER_PID}"
 # ── Esperar a que esté listo ──────────────────────────────────────────
 echo "  Esperando que el servidor cargue los modelos (puede tardar 1-3 min)..."
 WAIT_SECONDS=180
+READY=false
 for i in $(seq 1 $WAIT_SECONDS); do
     if ! kill -0 "$SERVER_PID" 2>/dev/null; then
         fail "El proceso del servidor terminó inesperadamente."
@@ -135,23 +137,25 @@ for i in $(seq 1 $WAIT_SECONDS); do
     fi
 
     if curl -fsS "${URL}/api/status" >/dev/null 2>&1; then
+        READY=true
         echo ""
         ok "Servidor listo en ${URL}"
         break
     fi
 
-    # Mostrar progreso cada 15 segundos
     if (( i % 15 == 0 )); then
         echo "  ...${i}s — aún cargando modelos..."
     fi
-
-    if (( i == WAIT_SECONDS )); then
-        fail "El servidor no respondió después de ${WAIT_SECONDS}s."
-        echo "Revisar el log en: ${LOG_FILE}"
-        exit 1
-    fi
     sleep 1
 done
+
+if ! $READY; then
+    fail "El servidor no respondió después de ${WAIT_SECONDS}s."
+    echo "Deteniendo proceso..."
+    kill "$SERVER_PID" 2>/dev/null || true
+    echo "Revisar el log en: ${LOG_FILE}"
+    exit 1
+fi
 
 # ── Crear acceso directo en el escritorio ────────────────────────────
 DESKTOP_DIR=""
@@ -171,12 +175,10 @@ Type=Application
 Name=RAG Histología
 Comment=Asistente de histología médica
 Exec=bash -c 'cd "${SCRIPT_DIR}" && ./start.sh'
-Icon=${SCRIPT_DIR}/client/favicon.ico
 Terminal=true
 Categories=Education;Science;
 EOF
     chmod +x "$SHORTCUT"
-    # Marcar como confiable en GNOME (suprime el diálogo "archivo sin verificar")
     gio set "$SHORTCUT" metadata::trusted true 2>/dev/null || true
     ok "Acceso directo creado en: ${SHORTCUT}"
 fi
