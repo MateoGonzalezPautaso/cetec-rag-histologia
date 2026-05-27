@@ -174,7 +174,7 @@ Version=1.0
 Type=Application
 Name=RAG Histología
 Comment=Asistente de histología médica
-Exec=bash -c 'cd "${SCRIPT_DIR}" && ./start.sh'
+Exec=bash -c "cd \"${SCRIPT_DIR}\" && ./start.sh; printf '\nPresioná Enter para cerrar...' && read -r _"
 Terminal=true
 Categories=Education;Science;
 EOF
