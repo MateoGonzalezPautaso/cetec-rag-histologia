@@ -112,6 +112,28 @@ def _check_ready():
         raise HTTPException(503, detail=_init_error or "Sistema inicializándose...")
 
 
+def _prune_chat_images(chat_dir: Path, keep: int = 20, protect: Optional[str] = None):
+    """Keep only the most recent uploads so imagenes_chat/ doesn't grow unbounded.
+
+    The currently-active image (reused across turns) is never deleted.
+    """
+    try:
+        files = sorted(
+            chat_dir.glob("upload_*"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for p in files[keep:]:
+            if protect and os.path.abspath(str(p)) == os.path.abspath(protect):
+                continue
+            try:
+                p.unlink()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 def _friendly_error_message(error: Exception) -> str:
     raw = str(error).lower()
     if any(token in raw for token in ["rate limit", "quota", "429", "resource_exhausted", "sin cuota"]):
@@ -218,8 +240,11 @@ async def post_chat(req: ChatRequest):
             
             with open(imagen_path, "wb") as f:
                 f.write(base64.b64decode(req.image_base64))
-                
+
             print(f"📷 Imagen guardada para chat: {imagen_path}")
+
+            activa = asistente.memoria.get_imagen_activa() if asistente.memoria else None
+            _prune_chat_images(chat_img_dir, keep=20, protect=activa)
 
         # Ejecutar consulta RAG
         respuesta = await asistente.consultar(
