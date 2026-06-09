@@ -1241,6 +1241,7 @@ class AsistenteHistologiaQdrant:
             k = (img_info["fuente_pdf"], img_info["pagina"])
             img_por_pdf_pag.setdefault(k, []).append(img_info["path"])
 
+        fallos = 0
         print("📄 Indexando chunks de texto...")
         for pdf_path in glob.glob(os.path.join(directorio_pdfs, "*.pdf")):
             fuente = os.path.basename(pdf_path)
@@ -1261,6 +1262,7 @@ class AsistenteHistologiaQdrant:
                             pagina=num_pagina, imagenes_pagina=img_paths,
                         )
                     except Exception as e:
+                        fallos += 1
                         print(f"  ⚠️ Chunk {fuente} p{num_pagina}-{i}: {e}")
 
         print("📸 Indexando imágenes...")
@@ -1303,6 +1305,7 @@ class AsistenteHistologiaQdrant:
                     nombre_archivo=nombre_archivo, etiqueta=etiqueta,
                 )
             except Exception as e:
+                fallos += 1
                 print(f"  ⚠️ Imagen {img_path}: {e}")
 
         for img_path in (imagen_files_extra or []):
@@ -1325,13 +1328,18 @@ class AsistenteHistologiaQdrant:
                     emb_uni=emb_u.tolist(), emb_plip=emb_p.tolist(), emb_texto=emb_texto,
                 )
             except Exception as e:
+                fallos += 1
                 print(f"  ❌ Imagen extra {img_path}: {e}")
 
-        try:
-            with open(marker_path, "w") as f:
-                f.write("ok")
-        except Exception as e:
-            print(f"⚠️ No se pudo escribir marca de completitud: {e}")
+        if fallos == 0:
+            try:
+                with open(marker_path, "w") as f:
+                    f.write("ok")
+            except Exception as e:
+                print(f"⚠️ No se pudo escribir marca de completitud: {e}")
+        else:
+            print(f"⚠️ {fallos} ítems fallaron — no se escribe marca de completitud "
+                  "(se reintentará en el próximo arranque).")
         print("✅ Indexación Qdrant completada")
 
     # ── PDF utilities ─────────────────────────────────────────────────────────
