@@ -1113,6 +1113,23 @@ class AsistenteHistologiaQdrant:
                 reescrita = f"Mostrame imagenes de {tema} del manual"
                 print(f"   🔄 Pedido contextualizado: '{consulta}' → '{reescrita}'")
                 return reescrita
+
+        # General fallback: pick the most recently mentioned syllabus topic from
+        # the history, so this works for any topic (not just the hardcoded few).
+        temas = self.extractor_temario.temas if self.extractor_temario else []
+        candidatos = []
+        for tema in temas:
+            tema_norm = normalizar(tema)
+            if len(tema_norm) <= 4:
+                continue
+            pos = historial_norm.rfind(tema_norm)
+            if pos != -1:
+                candidatos.append((pos, tema))
+        if candidatos:
+            _, tema = max(candidatos, key=lambda x: x[0])
+            reescrita = f"Mostrame imagenes de {tema} del manual"
+            print(f"   🔄 Pedido contextualizado (temario): '{consulta}' → '{reescrita}'")
+            return reescrita
         return consulta
 
     async def _reescribir_consulta_con_contexto(self, consulta: str, historial: str) -> str:
