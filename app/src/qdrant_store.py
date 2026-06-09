@@ -605,22 +605,29 @@ class QdrantVectorStore:
         top_k: int = 10,
         incluir_imagenes_texto: bool = False,
     ) -> list:
-        res_texto = []
-        res_uni = []
-        res_plip = []
-        res_ent = []
         res_pag_chunks = []
         res_img_texto = []
         res_keyword = []
 
-        if texto_embedding:
-            res_texto = await self.busqueda_vectorial(texto_embedding, INDEX_TEXTO, top_k)
-        if imagen_embedding_uni:
-            res_uni = [r for r in await self.busqueda_vectorial(imagen_embedding_uni, INDEX_UNI, top_k) if r.get("similitud", 0) >= 0.80]
-        if imagen_embedding_plip:
-            res_plip = [r for r in await self.busqueda_vectorial(imagen_embedding_plip, INDEX_PLIP, top_k) if r.get("similitud", 0) >= 0.80]
+        # Independent read-only searches run concurrently; each offloads its
+        # blocking qdrant-client call via asyncio.to_thread.
+        async def _buscar_texto():
+            return await self.busqueda_vectorial(texto_embedding, INDEX_TEXTO, top_k) if texto_embedding else []
 
-        res_ent = await self.busqueda_por_entidades(entidades, top_k)
+        async def _buscar_uni():
+            if not imagen_embedding_uni:
+                return []
+            return [r for r in await self.busqueda_vectorial(imagen_embedding_uni, INDEX_UNI, top_k) if r.get("similitud", 0) >= 0.80]
+
+        async def _buscar_plip():
+            if not imagen_embedding_plip:
+                return []
+            return [r for r in await self.busqueda_vectorial(imagen_embedding_plip, INDEX_PLIP, top_k) if r.get("similitud", 0) >= 0.80]
+
+        res_texto, res_uni, res_plip, res_ent = await asyncio.gather(
+            _buscar_texto(), _buscar_uni(), _buscar_plip(),
+            self.busqueda_por_entidades(entidades, top_k),
+        )
 
         tiene_imagen = imagen_embedding_uni is not None or imagen_embedding_plip is not None
 
