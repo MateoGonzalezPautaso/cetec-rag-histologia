@@ -1119,31 +1119,23 @@ class AsistenteHistologiaQdrant:
         if not historial:
             return consulta
         try:
-            resp_check = await invoke_con_reintento(self.llm, [
-                SystemMessage(content=(
-                    "Determiná si la consulta hace referencia a temas de la conversación previa "
-                    "(usa pronombres como 'eso', 'esto', o pide 'más sobre' algo previo). "
-                    "Respondé SOLO con 'SI' o 'NO'."
-                )),
-                HumanMessage(content=f"HISTORIAL:\n{historial}\n\nCONSULTA: {consulta}"),
-            ])
-            if "SI" not in resp_check.content.strip().upper():
-                return consulta
-
+            # Single round-trip: rewrite if the query references prior context,
+            # otherwise the model returns it unchanged.
             resp = await invoke_con_reintento(self.llm, [
                 SystemMessage(content=(
-                    "Reescribí la consulta para que sea autocontenida, resolviendo referencias "
-                    "a temas previos con el historial.\n\n"
+                    "Si la CONSULTA ACTUAL hace referencia a temas de la conversación previa "
+                    "(usa pronombres como 'eso', 'esto', o pide 'más sobre' algo previo), "
+                    "reescribila para que sea autocontenida resolviendo esas referencias con el "
+                    "historial. Si ya es autocontenida, devolvela EXACTAMENTE igual.\n\n"
                     "REGLAS:\n"
-                    "- Devolvé SOLO la consulta reescrita, sin explicaciones.\n"
+                    "- Devolvé SOLO la consulta final, sin explicaciones.\n"
                     "- Máximo 30 palabras.\n"
-                    "- NO generes respuestas ni inventes contenido.\n"
-                    "- Si ya es clara, devolvela tal cual."
+                    "- NO generes respuestas ni inventes contenido."
                 )),
                 HumanMessage(content=f"HISTORIAL:\n{historial}\n\nCONSULTA ACTUAL: {consulta}"),
             ])
             reescrita = resp.content.strip()
-            if reescrita and len(reescrita) < len(consulta) * 3 and len(reescrita) < 200:
+            if reescrita and reescrita != consulta and len(reescrita) < len(consulta) * 3 and len(reescrita) < 200:
                 print(f"   🔄 Reescrita: '{consulta}' → '{reescrita}'")
                 return reescrita
             if reescrita and len(reescrita) >= 200:
