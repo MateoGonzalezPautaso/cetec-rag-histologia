@@ -1264,7 +1264,7 @@ class AsistenteHistologiaQdrant:
             try:
                 emb_u = self.uni.embed_image(img_path, preprocess=False)
                 emb_p = self.plip.embed_image(img_path, preprocess=False)
-                img_id = f"img_{img_info['fuente_pdf']}_{img_info['pagina']}"
+                img_id = f"img_{img_info['fuente_pdf']}_{img_info['pagina']}_{os.path.basename(img_path)}"
                 caption = img_info.get("caption", "")
                 etiqueta = img_info.get("etiqueta", "")
                 nombre_archivo = img_info.get("nombre_archivo", os.path.basename(img_path))
