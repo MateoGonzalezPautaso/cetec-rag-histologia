@@ -315,10 +315,16 @@ class QdrantVectorStore:
         terminos_largos = [t for t in terminos_lower if len(t.split()) >= 2]
 
         try:
-            all_chunks, _ = self.client.scroll(
-                collection_name=COLLECTION_CHUNKS, limit=500,
-                with_payload=True, with_vectors=False,
-            )
+            all_chunks = []
+            next_offset = None
+            while True:
+                batch, next_offset = self.client.scroll(
+                    collection_name=COLLECTION_CHUNKS, limit=500,
+                    offset=next_offset, with_payload=True, with_vectors=False,
+                )
+                all_chunks.extend(batch)
+                if next_offset is None:
+                    break
             resultados = []
             for r in all_chunks:
                 texto = (r.payload.get("texto", "") or "").lower()
