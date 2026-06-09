@@ -1152,7 +1152,7 @@ class AsistenteHistologiaQdrant:
                 HumanMessage(content=f"HISTORIAL:\n{historial}\n\nCONSULTA ACTUAL: {consulta}"),
             ])
             reescrita = resp.content.strip()
-            if reescrita and reescrita != consulta and len(reescrita) < len(consulta) * 3 and len(reescrita) < 200:
+            if reescrita and reescrita != consulta and len(reescrita) < 200:
                 print(f"   🔄 Reescrita: '{consulta}' → '{reescrita}'")
                 return reescrita
             if reescrita and len(reescrita) >= 200:
