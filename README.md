@@ -63,7 +63,7 @@ Colocar los archivos PDF en la carpeta `pdf/`. Al iniciar, el servidor:
 3. Genera embeddings de texto (MiniLM), visuales (UNI, PLIP) e indexa todo en Qdrant.
 4. Extrae el temario automáticamente del contenido.
 
-El indexado solo corre si Qdrant está vacío. Para forzar una reindexación: borrar las colecciones en el panel de Qdrant Cloud y reiniciar.
+El indexado se saltea solo si las colecciones de Qdrant ya están pobladas **y** existe la marca de indexación completa (`app/.qdrant_index_complete`). Si una indexación previa quedó incompleta —por una interrupción o porque algún ítem falló al indexarse— la marca no se escribe y el sistema reindexa automáticamente en el próximo arranque (los upserts son idempotentes). Para forzar una reindexación manual: borrar el archivo `app/.qdrant_index_complete` (o vaciar las colecciones en el panel de Qdrant Cloud) y reiniciar.
 
 ---
 
