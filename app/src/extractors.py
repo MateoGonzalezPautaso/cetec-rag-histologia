@@ -221,6 +221,20 @@ class ExtractorTemario:
         self.llm = llm
         self.temas: List[str] = []
 
+    @staticmethod
+    def _muestra_representativa(texto: str, presupuesto: int = 24000, ventanas: int = 6) -> str:
+        """
+        Sample evenly-spaced windows across the whole corpus instead of only the
+        first N characters, so the syllabus reflects the entire manual (not just
+        the opening pages of the first PDF).
+        """
+        if len(texto) <= presupuesto:
+            return texto
+        win = max(1, presupuesto // ventanas)
+        paso = max(1, (len(texto) - win) // max(1, ventanas - 1))
+        partes = [texto[i * paso: i * paso + win] for i in range(ventanas)]
+        return "\n[...]\n".join(partes)
+
     def _limpiar(self, temas_raw: List[str]) -> List[str]:
         FRASES_MODELO = [
             "aqui te dejo", "aqui tienes", "lista exhaustiva",
@@ -266,7 +280,7 @@ class ExtractorTemario:
             except Exception as e:
                 print(f"⚠️ No se pudo leer cache de temario: {e}")
 
-        muestra = texto_completo[:8000]
+        muestra = self._muestra_representativa(texto_completo)
         try:
             resp = await invoke_con_reintento(self.llm, [
                 SystemMessage(content=(
