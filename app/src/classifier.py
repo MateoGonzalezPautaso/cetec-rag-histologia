@@ -26,7 +26,6 @@ class ClasificadorSemantico:
     """
 
     UMBRAL_SIMILITUD = 0.45
-    UMBRAL_LLM = 0.49
 
     def __init__(self, llm, embeddings, device: str, temario: List[str]):
         self.llm = llm
