@@ -168,6 +168,25 @@ async def serve_css():
     return FileResponse(str(CLIENT_DIR / "style.css"), media_type="text/css")
 
 
+# ── Favicon / iconos del cliente ─────────────────────────────────────
+# Servidos en la raíz porque index.html los referencia con rutas absolutas.
+_FAVICONS = {
+    "favicon.ico": "image/x-icon",
+    "favicon.svg": "image/svg+xml",
+    "favicon-16.png": "image/png",
+    "favicon-32.png": "image/png",
+    "favicon-180.png": "image/png",
+}
+
+def _make_favicon_route(fname: str, mime: str):
+    async def _serve():
+        return FileResponse(str(CLIENT_DIR / fname), media_type=mime)
+    return _serve
+
+for _fname, _mime in _FAVICONS.items():
+    app.add_api_route(f"/{_fname}", _make_favicon_route(_fname, _mime), methods=["GET"])
+
+
 # ── API: Estado ──────────────────────────────────────────────────────
 @app.get("/api/status")
 async def get_status():
