@@ -288,10 +288,12 @@ class QdrantVectorStore:
                 scroll_filter=Filter(should=conditions),
                 limit=top_k,
             )
+            # Score must clear umbral_texto (0.30) after the text-mode weight (×0.60)
+            # in busqueda_hibrida, otherwise entity-only hits are always filtered out.
             return [{
                 "id": str(r.id), "texto": r.payload.get("texto", ""),
                 "fuente": r.payload.get("fuente", ""), "tipo": "texto",
-                "imagen_path": None, "similitud": 0.49,
+                "imagen_path": None, "similitud": 0.55,
                 "nombre_archivo": "", "etiqueta": "",
                 "imagenes_pagina": r.payload.get("imagenes_pagina", []),
                 "pagina": r.payload.get("pagina"),
