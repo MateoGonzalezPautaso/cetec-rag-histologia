@@ -37,7 +37,15 @@ trayectoria_histologia.json
 trayectoria_qdrant.json
 trayectoria_neo4j.json
 temario_histologia.json
+temario_histologia.sha256
+.qdrant_index_complete
 logs/
+eval_reliability_report.json
+reporte_ragas.json
+
+# ─── Imágenes subidas por usuarios en el chat ─────────────────────────
+imagenes_chat/
+imagenes_extraidas/
 
 # ─── Modelos descargados (cache de HuggingFace) ──────────────────────
 .cache/
