@@ -97,7 +97,6 @@ class SemanticMemory:
         if len(self.conversations) > self.max_entries:
             self.conversations.pop(0)
 
-        self.direct_history += f"\nUsuario: {query}\nAsistente: {response}\n"
         if len(self.conversations) > 3:
             recent = self.conversations[-3:]
             self.direct_history = ""
@@ -110,6 +109,8 @@ class SemanticMemory:
                     f"\nUsuario{img_nota}: {conv['query']}\n"
                     f"Asistente: {conv['response']}\n"
                 )
+        else:
+            self.direct_history += f"\nUsuario: {query}\nAsistente: {response}\n"
 
         self._update_summary()
 
