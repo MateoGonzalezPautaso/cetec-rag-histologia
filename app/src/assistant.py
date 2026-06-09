@@ -1256,7 +1256,6 @@ class AsistenteHistologiaQdrant:
                         print(f"  ⚠️ Chunk {fuente} p{num_pagina}-{i}: {e}")
 
         print("📸 Indexando imágenes...")
-        imagenes_pdf = self.extractor_imagenes.extraer_de_directorio(directorio_pdfs)
         for img_info in imagenes_pdf:
             img_path = img_info["path"]
             if not os.path.exists(img_path):
