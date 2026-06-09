@@ -5,6 +5,7 @@ Owns the LangGraph pipeline and all node implementations.
 All public entry points are async.
 """
 
+import asyncio
 import base64
 import glob
 import json
@@ -32,7 +33,7 @@ from .embeddings import PlipWrapper, UniWrapper
 from .extractors import ExtractorEntidades, ExtractorImagenesPDF, ExtractorTemario
 from .graph import AgentState
 from .llm import (
-    embed_query_con_reintento, invoke_con_reintento, invoke_con_reintento_sync,
+    embed_query_con_reintento, invoke_con_reintento,
     userdata,
 )
 from .memory import SemanticMemory
@@ -158,7 +159,7 @@ class AsistenteHistologiaQdrant:
 
     # ── Routers ───────────────────────────────────────────────────────────────
 
-    def _route_por_modo(self, state: AgentState) -> str:
+    async def _route_por_modo(self, state: AgentState) -> str:
         imagen_path = state.get("imagen_path")
         tiene_imagen_nueva = imagen_path and os.path.exists(imagen_path)
         tiene_imagen_memoria = self.memoria and self.memoria.tiene_imagen_previa()
@@ -170,7 +171,7 @@ class AsistenteHistologiaQdrant:
         if tiene_imagen_memoria:
             consulta = state.get("consulta_texto", "")
             try:
-                resp = invoke_con_reintento_sync(self.llm, [
+                resp = await invoke_con_reintento(self.llm, [
                     SystemMessage(content=(
                         "Sos un clasificador estricto. El usuario tiene una imagen histológica "
                         "subida previamente. Determiná si su consulta ACTUAL necesita analizar "
@@ -963,9 +964,11 @@ class AsistenteHistologiaQdrant:
                     fuentes_count[f] = fuentes_count.get(f, 0) + 1
             fuente_dominante = max(fuentes_count, key=fuentes_count.get) if fuentes_count else None
 
-            all_imgs, _ = self.qdrant_store.client.scroll(
-                collection_name=COLLECTION_IMAGENES, limit=200,
-                with_payload=True, with_vectors=False,
+            all_imgs, _ = await asyncio.to_thread(
+                lambda: self.qdrant_store.client.scroll(
+                    collection_name=COLLECTION_IMAGENES, limit=200,
+                    with_payload=True, with_vectors=False,
+                )
             )
             nuevas: List[dict] = []
             vistas: set = set()
