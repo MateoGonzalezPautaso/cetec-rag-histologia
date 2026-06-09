@@ -23,6 +23,8 @@ cd app && ./start.sh
 
 El script instala dependencias, inicia el servidor y abre el navegador automáticamente en `http://localhost:10007`.
 
+La primera vez también crea un acceso directo **«RAG Histología»** en el escritorio. Al hacer doble clic: si el servidor ya está corriendo abre el navegador; si no, lo inicia (vía `launch.sh`) y abre el navegador cuando está listo.
+
 ---
 
 ## Requisitos previos
@@ -98,7 +100,8 @@ curl http://localhost:10007/api/status
 app/
 ├── server.py              # FastAPI: endpoints REST + sirviendo el frontend
 ├── pyproject.toml         # Dependencias Python (gestor: uv)
-├── start.sh               # Script de inicio con checks automáticos
+├── start.sh               # Script de inicio con checks automáticos + acceso directo
+├── launch.sh              # Lanzador del acceso directo del escritorio
 ├── .env                   # Claves privadas (no commitear)
 │
 ├── src/                   # Módulos del backend

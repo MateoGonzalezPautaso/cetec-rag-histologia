@@ -174,7 +174,7 @@ Version=1.0
 Type=Application
 Name=RAG Histología
 Comment=Asistente de histología médica
-Exec=bash ${SCRIPT_DIR}/launch.sh
+Exec=bash "${SCRIPT_DIR}/launch.sh"
 Terminal=true
 Categories=Education;Science;
 EOF
