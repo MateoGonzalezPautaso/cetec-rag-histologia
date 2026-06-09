@@ -1210,13 +1210,18 @@ class AsistenteHistologiaQdrant:
         imagen_files_extra: Optional[List[str]] = None,
         forzar: bool = False,
     ):
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        marker_path = os.path.join(base_dir, ".qdrant_index_complete")
+
         if not forzar:
             try:
                 n_chunks = self.qdrant_store.client.count(collection_name=COLLECTION_CHUNKS).count
                 n_imgs = self.qdrant_store.client.count(collection_name=COLLECTION_IMAGENES).count
-                if n_chunks > 0 and n_imgs > 0:
+                if n_chunks > 0 and n_imgs > 0 and os.path.exists(marker_path):
                     print(f"✅ BD ya poblada ({n_chunks} chunks, {n_imgs} imágenes). Saltando indexación.")
                     return
+                if n_chunks > 0 and n_imgs > 0:
+                    print("⚠️ BD poblada pero sin marca de completitud — reindexando para garantizar consistencia.")
             except Exception as e:
                 print(f"⚠️ No se pudo verificar estado de la BD: {e}")
 
@@ -1313,6 +1318,11 @@ class AsistenteHistologiaQdrant:
             except Exception as e:
                 print(f"  ❌ Imagen extra {img_path}: {e}")
 
+        try:
+            with open(marker_path, "w") as f:
+                f.write("ok")
+        except Exception as e:
+            print(f"⚠️ No se pudo escribir marca de completitud: {e}")
         print("✅ Indexación Qdrant completada")
 
     # ── PDF utilities ─────────────────────────────────────────────────────────
