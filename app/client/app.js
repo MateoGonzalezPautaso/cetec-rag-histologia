@@ -438,8 +438,10 @@ function extractManualSources(text) {
 }
 
 function parseImageReference(value) {
-    const match = value.match(/(arch\d+)_pag(\d+)/i);
-    if (!match) return '';
+    // Matches "<pdf-basename>_pag<N>" for any manual, e.g. arch2_pag5 or
+    // histologia_completo_pag12(_full).
+    const match = value.match(/^(.*?)_pag(\d+)/i);
+    if (!match || !match[1]) return '';
     return `${match[1]}.pdf · pág. ${Number(match[2])}`;
 }
 
