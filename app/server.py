@@ -5,7 +5,6 @@ Wrappea AsistenteHistologiaQdrant y expone endpoints REST.
 """
 
 import base64
-import json
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -250,16 +249,7 @@ async def post_chat(req: ChatRequest):
                     })
             print(f"🖼️ {len(imagenes_response)} imágenes para mostrar al usuario")
 
-        # Leer trayectoria del archivo (solo para metadata de debug)
-        trayectoria = []
-        trayectoria_file = Path(__file__).parent / "trayectoria_qdrant.json"
-        if trayectoria_file.exists():
-            try:
-                with open(trayectoria_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                trayectoria = data.get("trayectoria", [])
-            except Exception:
-                pass
+        trayectoria = resultado_directo.get("trayectoria", [])
 
         img_activa = None
         if asistente.memoria and asistente.memoria.get_imagen_activa():

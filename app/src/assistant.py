@@ -1010,17 +1010,6 @@ class AsistenteHistologiaQdrant:
         total = round(time.time() - state["tiempo_inicio"], 2)
         state["trayectoria"].append({"nodo": "Finalizar", "tiempo_total": total})
 
-        base_dir = Path(__file__).parent.parent
-        with open(base_dir / "trayectoria_qdrant.json", "w", encoding="utf-8") as f:
-            json.dump({
-                "trayectoria": state["trayectoria"],
-                "estructura_identificada": state.get("estructura_identificada"),
-                "imagenes_recuperadas": state.get("imagenes_recuperadas", []),
-                "entidades_consulta": state.get("entidades_consulta", {}),
-                "mostrar_imagenes": state.get("mostrar_imagenes", False),
-                "imagenes_para_mostrar": state.get("imagenes_para_mostrar", []),
-            }, f, indent=4, ensure_ascii=False)
-
         print(f"✅ Flujo v5.0 completado en {total}s")
         if state.get("estructura_identificada"):
             print(f"   → Estructura: {state['estructura_identificada']}")
@@ -1424,6 +1413,7 @@ class AsistenteHistologiaQdrant:
             "imagenes_recuperadas": final.get("imagenes_recuperadas", []),
             "estructura_identificada": final.get("estructura_identificada"),
             "imagenes_para_mostrar": final.get("imagenes_para_mostrar", []),
+            "trayectoria": final.get("trayectoria", []),
         }
         return respuesta
 
