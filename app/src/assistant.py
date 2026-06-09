@@ -5,7 +5,6 @@ Owns the LangGraph pipeline and all node implementations.
 All public entry points are async.
 """
 
-import asyncio
 import base64
 import glob
 import json
@@ -964,12 +963,7 @@ class AsistenteHistologiaQdrant:
                     fuentes_count[f] = fuentes_count.get(f, 0) + 1
             fuente_dominante = max(fuentes_count, key=fuentes_count.get) if fuentes_count else None
 
-            all_imgs, _ = await asyncio.to_thread(
-                lambda: self.qdrant_store.client.scroll(
-                    collection_name=COLLECTION_IMAGENES, limit=200,
-                    with_payload=True, with_vectors=False,
-                )
-            )
+            all_imgs = await self.qdrant_store._scroll_all(COLLECTION_IMAGENES)
             nuevas: List[dict] = []
             vistas: set = set()
             for r in all_imgs:

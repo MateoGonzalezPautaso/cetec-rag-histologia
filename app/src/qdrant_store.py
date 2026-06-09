@@ -2,6 +2,7 @@
 Qdrant vector store: schema creation, upsert, and all search strategies.
 """
 
+import asyncio
 import os
 import uuid
 from typing import Any, Dict, List, Optional
@@ -197,12 +198,29 @@ class QdrantVectorStore:
 
     # ── Search ────────────────────────────────────────────────────────────────
 
+    async def _scroll_all(self, collection_name: str, scroll_filter=None, batch: int = 500) -> list:
+        """Scroll an entire collection (paginated) off the event loop."""
+        puntos: list = []
+        next_offset = None
+        while True:
+            lote, next_offset = await asyncio.to_thread(
+                lambda off=next_offset: self.client.scroll(
+                    collection_name=collection_name, scroll_filter=scroll_filter,
+                    limit=batch, offset=off, with_payload=True, with_vectors=False,
+                )
+            )
+            puntos.extend(lote)
+            if next_offset is None:
+                break
+        return puntos
+
     async def busqueda_vectorial(self, embedding: list, index_name: str, top_k: int = 10) -> list:
         try:
             if index_name == INDEX_TEXTO:
-                results = self.client.query_points(
-                    collection_name=COLLECTION_CHUNKS, query=embedding, limit=top_k
-                ).points
+                results = (await asyncio.to_thread(
+                    self.client.query_points,
+                    collection_name=COLLECTION_CHUNKS, query=embedding, limit=top_k,
+                )).points
                 return [{
                     "id": str(r.id), "texto": r.payload.get("texto", ""),
                     "fuente": r.payload.get("fuente", ""), "tipo": "texto",
@@ -213,10 +231,11 @@ class QdrantVectorStore:
                 } for r in results]
             else:
                 using_vector = "uni" if index_name == INDEX_UNI else "plip"
-                results = self.client.query_points(
+                results = (await asyncio.to_thread(
+                    self.client.query_points,
                     collection_name=COLLECTION_IMAGENES, query=embedding,
-                    using=using_vector, limit=top_k
-                ).points
+                    using=using_vector, limit=top_k,
+                )).points
                 out = []
                 for r in results:
                     nombre_archivo = r.payload.get("nombre_archivo", "").lower()
@@ -241,7 +260,8 @@ class QdrantVectorStore:
 
     async def busqueda_chunks_por_pagina(self, fuente: str, pagina: int, top_k: int = 3) -> list:
         try:
-            results, _ = self.client.scroll(
+            results, _ = await asyncio.to_thread(
+                self.client.scroll,
                 collection_name=COLLECTION_CHUNKS,
                 scroll_filter=Filter(must=[
                     FieldCondition(key="fuente", match=MatchValue(value=fuente)),
@@ -283,7 +303,8 @@ class QdrantVectorStore:
         if temas: conditions.append(FieldCondition(key="temas", match=MatchAny(any=temas)))
 
         try:
-            results, _ = self.client.scroll(
+            results, _ = await asyncio.to_thread(
+                self.client.scroll,
                 collection_name=COLLECTION_CHUNKS,
                 scroll_filter=Filter(should=conditions),
                 limit=top_k,
@@ -317,16 +338,7 @@ class QdrantVectorStore:
         terminos_largos = [t for t in terminos_lower if len(t.split()) >= 2]
 
         try:
-            all_chunks = []
-            next_offset = None
-            while True:
-                batch, next_offset = self.client.scroll(
-                    collection_name=COLLECTION_CHUNKS, limit=500,
-                    offset=next_offset, with_payload=True, with_vectors=False,
-                )
-                all_chunks.extend(batch)
-                if next_offset is None:
-                    break
+            all_chunks = await self._scroll_all(COLLECTION_CHUNKS)
             resultados = []
             for r in all_chunks:
                 texto = (r.payload.get("texto", "") or "").lower()
@@ -368,10 +380,7 @@ class QdrantVectorStore:
         ))
 
         try:
-            all_imgs, _ = self.client.scroll(
-                collection_name=COLLECTION_IMAGENES, limit=200,
-                with_payload=True, with_vectors=False,
-            )
+            all_imgs = await self._scroll_all(COLLECTION_IMAGENES)
             resultados = []
             for r in all_imgs:
                 combined = _sin_tildes(" ".join([
@@ -412,10 +421,7 @@ class QdrantVectorStore:
         patrones_norm = [_sin_tildes(p) for p in patrones_lower]
 
         try:
-            all_imgs, _ = self.client.scroll(
-                collection_name=COLLECTION_IMAGENES, limit=200,
-                with_payload=True, with_vectors=False,
-            )
+            all_imgs = await self._scroll_all(COLLECTION_IMAGENES)
             resultados = []
             vistas: set = set()
             for r in all_imgs:
@@ -491,10 +497,11 @@ class QdrantVectorStore:
         print("   🔎 Búsqueda semántica de imágenes en Qdrant...")
         candidatas: Dict[str, dict] = {}
         try:
-            results = self.client.query_points(
+            results = (await asyncio.to_thread(
+                self.client.query_points,
                 collection_name=COLLECTION_IMAGENES, query=texto_embedding,
                 using="texto_emb", limit=top_k * 3,
-            ).points
+            )).points
             for r in results:
                 caption = r.payload.get("caption", "")
                 texto_pag = r.payload.get("texto_pagina", "")
@@ -515,34 +522,38 @@ class QdrantVectorStore:
 
         print(f"   📋 {len(candidatas)} candidatas — re-ranking semántico...")
         q_emb = np.array(texto_embedding)
-        rankeadas = []
 
-        for img_dict in candidatas.values():
-            caption_full = img_dict.get("texto", "") or img_dict.get("caption_raw", "")
-            if not caption_full or len(caption_full.strip()) < 10:
-                continue
-            img_path = img_dict.get("imagen_path", "")
-            nombre = img_dict.get("nombre_archivo", "").lower()
-            if not img_path or not os.path.exists(img_path) or "_full." in nombre:
-                continue
-            try:
-                caption_emb = np.array(embed_query_con_reintento(embeddings_model, caption_full[:500]))
-                titulo = caption_full.split("\n")[0].strip()
-                sim_caption = float(q_emb @ caption_emb / (np.linalg.norm(q_emb) * np.linalg.norm(caption_emb) + 1e-10))
-                sim_titulo = 0.0
-                if titulo and len(titulo) >= 5:
-                    titulo_emb = np.array(embed_query_con_reintento(embeddings_model, titulo))
-                    sim_titulo = float(q_emb @ titulo_emb / (np.linalg.norm(q_emb) * np.linalg.norm(titulo_emb) + 1e-10))
-                sim = max(sim_titulo, sim_caption) * 0.7 + min(sim_titulo, sim_caption) * 0.3
-                rankeadas.append({
-                    "id": img_dict["id"], "path": img_path, "caption": caption_full[:500],
-                    "nombre_archivo": img_dict.get("nombre_archivo", os.path.basename(img_path)),
-                    "etiqueta": img_dict.get("etiqueta", ""), "fuente": img_dict.get("fuente", ""),
-                    "similitud_semantica": sim,
-                })
-            except Exception:
-                continue
+        def _rerank(cands: list) -> list:
+            salida = []
+            for img_dict in cands:
+                caption_full = img_dict.get("texto", "") or img_dict.get("caption_raw", "")
+                if not caption_full or len(caption_full.strip()) < 10:
+                    continue
+                img_path = img_dict.get("imagen_path", "")
+                nombre = img_dict.get("nombre_archivo", "").lower()
+                if not img_path or not os.path.exists(img_path) or "_full." in nombre:
+                    continue
+                try:
+                    caption_emb = np.array(embed_query_con_reintento(embeddings_model, caption_full[:500]))
+                    titulo = caption_full.split("\n")[0].strip()
+                    sim_caption = float(q_emb @ caption_emb / (np.linalg.norm(q_emb) * np.linalg.norm(caption_emb) + 1e-10))
+                    sim_titulo = 0.0
+                    if titulo and len(titulo) >= 5:
+                        titulo_emb = np.array(embed_query_con_reintento(embeddings_model, titulo))
+                        sim_titulo = float(q_emb @ titulo_emb / (np.linalg.norm(q_emb) * np.linalg.norm(titulo_emb) + 1e-10))
+                    sim = max(sim_titulo, sim_caption) * 0.7 + min(sim_titulo, sim_caption) * 0.3
+                    salida.append({
+                        "id": img_dict["id"], "path": img_path, "caption": caption_full[:500],
+                        "nombre_archivo": img_dict.get("nombre_archivo", os.path.basename(img_path)),
+                        "etiqueta": img_dict.get("etiqueta", ""), "fuente": img_dict.get("fuente", ""),
+                        "similitud_semantica": sim,
+                    })
+                except Exception:
+                    continue
+            return salida
 
+        # Embedding inference is CPU/GPU-bound — keep it off the event loop.
+        rankeadas = await asyncio.to_thread(_rerank, list(candidatas.values()))
         rankeadas.sort(key=lambda x: x["similitud_semantica"], reverse=True)
         if rankeadas:
             top3 = [(r["nombre_archivo"], round(r["similitud_semantica"], 3)) for r in rankeadas[:3]]
@@ -623,10 +634,11 @@ class QdrantVectorStore:
 
         if texto_embedding and incluir_imagenes_texto:
             try:
-                raw_img = self.client.query_points(
+                raw_img = (await asyncio.to_thread(
+                    self.client.query_points,
                     collection_name=COLLECTION_IMAGENES, query=texto_embedding,
                     using="texto_emb", limit=top_k,
-                ).points
+                )).points
                 for r in raw_img:
                     if "_full." in (r.payload.get("nombre_archivo", "").lower()):
                         continue
