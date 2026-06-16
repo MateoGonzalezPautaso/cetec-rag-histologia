@@ -125,16 +125,26 @@ flowchart TD
 git clone https://github.com/MateoGonzalezPautaso/cetec-rag-histologia.git
 cd cetec-rag-histologia
 
-# 1. Copiar y completar el archivo de configuración
+# 1. Restaurar pyproject.toml (NO está versionado — ver nota debajo)
+git show "$(git log --diff-filter=D -1 --format=%H -- app/pyproject.toml)^:app/pyproject.toml" > app/pyproject.toml
+
+# 2. Copiar y completar el archivo de configuración
 cp .env.example app/.env
 # Editar app/.env con tus claves (ver sección Configuración)
 
-# 2. Verificar que estén los PDFs del manual
+# 3. Verificar que estén los PDFs del manual
 # El repo ya incluye PDFs en data/pdf/. También se pueden poner PDFs propios en app/pdf/.
 
-# 3. Ejecutar el script de inicio
+# 4. Ejecutar el script de inicio
 cd app && ./start.sh
 ```
+
+> ⚠️ **Sobre `app/pyproject.toml`:** el archivo **no está versionado** (está en `.gitignore`) porque las
+> dependencias dependen de la máquina — en particular el build de **PyTorch (CPU vs. CUDA)** y el índice
+> de descarga (`[tool.uv.sources]`). Por eso, en un clon nuevo hay que **restaurarlo antes** de instalar
+> dependencias; si no, `uv sync` (o `start.sh`) falla con `No pyproject.toml found`. El comando del paso 1
+> recupera la última versión guardada en el historial de git; luego ajustá el índice de torch según tu
+> hardware (`pytorch-cu118` para GPU NVIDIA con CUDA 11.8, o el índice `cpu` si no tenés GPU).
 
 El script instala dependencias, crea/usa una base Qdrant local en `app/qdrant_data/`, inicia el servidor y abre el navegador automáticamente en `http://localhost:10007`.
 
@@ -188,6 +198,9 @@ El indexado se saltea solo si las colecciones de Qdrant ya están pobladas **y**
 ---
 
 ## Ejecutar manualmente
+
+> **Nota:** si `app/pyproject.toml` no existe (no se versiona, ver [Inicio rápido](#inicio-rápido)), restauralo
+> antes de instalar dependencias, o `uv sync` fallará con `No pyproject.toml found`.
 
 ```bash
 cd app
