@@ -359,7 +359,9 @@ async def evaluar(limit: int = 0, skip_ragas: bool = False, indices: list[int] |
                 "fuente_dominante_pct_top_5": ruido_fuente["fuente_dominante_pct"],
                 "n_fuentes_distintas_top_5": ruido_fuente["n_fuentes_distintas"],
                 "fuera_fuente_esperada_at_5": ruido_fuente["fuera_fuente_esperada_at_k"],
-                "recall_at_5": recall_5_fuente_pagina,
+                # recall_at_5 = recall@5 convencional (acertar la página).
+                # recall_at_5_fuente_pagina es la variante estricta (fuente + página).
+                "recall_at_5": recall_5_pagina,
                 "recall_at_5_fuente_pagina": recall_5_fuente_pagina,
                 "recall_at_5_pagina": recall_5_pagina,
                 "respuesta": resultado["respuesta"],
@@ -401,10 +403,15 @@ async def evaluar(limit: int = 0, skip_ragas: bool = False, indices: list[int] |
     print("📏 MÉTRICAS DE RETRIEVAL (sin LLM)")
     print(f"{'=' * 60}\n")
 
+    n_eval = len(resultados_eval)
+    if n_eval == 0:
+        print("⚠️ No hay preguntas evaluadas; se omiten las métricas de retrieval.")
+        return
+
     total_con_contexto = sum(1 for r in resultados_eval if r.get("contexto_suficiente"))
     total_tema_valido = sum(1 for r in resultados_eval if r.get("tema_valido"))
-    avg_n_validos = sum(r.get("n_validos", 0) for r in resultados_eval) / len(resultados_eval)
-    avg_sim = sum(r.get("similitud_dominio", 0) for r in resultados_eval) / len(resultados_eval)
+    avg_n_validos = sum(r.get("n_validos", 0) for r in resultados_eval) / n_eval
+    avg_sim = sum(r.get("similitud_dominio", 0) for r in resultados_eval) / n_eval
 
     recall_vals = [r["recall_at_5_fuente_pagina"] for r in resultados_eval if r.get("recall_at_5_fuente_pagina") is not None]
     avg_recall_5 = sum(recall_vals) / len(recall_vals) if recall_vals else None
@@ -449,7 +456,7 @@ async def evaluar(limit: int = 0, skip_ragas: bool = False, indices: list[int] |
             "contexto_suficiente_pct": round(100 * total_con_contexto / len(resultados_eval), 1) if resultados_eval else 0,
             "avg_resultados_validos": round(avg_n_validos, 2),
             "avg_similitud_dominio": round(avg_sim, 4),
-            "recall_at_5": round(avg_recall_5, 4) if avg_recall_5 is not None else None,
+            "recall_at_5": round(avg_recall_5_pagina, 4) if avg_recall_5_pagina is not None else None,
             "recall_at_5_fuente_pagina": round(avg_recall_5, 4) if avg_recall_5 is not None else None,
             "recall_at_5_pagina": round(avg_recall_5_pagina, 4) if avg_recall_5_pagina is not None else None,
             "avg_fuera_fuente_esperada_at_5": round(avg_fuera_fuente_at_5, 2) if avg_fuera_fuente_at_5 is not None else None,
@@ -814,10 +821,12 @@ async def evaluar_solo_ragas(limit: int = 0, indices: list[int] | None = None):
     if indices:
         if max(indices) < len(detalle):
             detalle = seleccionar_por_indices(detalle, indices)
-        elif len(detalle) == len(indices):
-            print("ℹ️  El reporte ya parece estar filtrado por esos indices; se usa tal cual.")
         else:
-            detalle = seleccionar_por_indices(detalle, indices)
+            # Algún índice excede el reporte: lo más probable es que el reporte
+            # ya se haya generado filtrado por estos mismos --indices, así que lo
+            # usamos tal cual en lugar de reventar con IndexError.
+            print(f"ℹ️  Algunos índices exceden el reporte ({len(detalle)} entradas); "
+                  "se asume que ya está filtrado y se usa tal cual.")
     if limit > 0:
         detalle = detalle[:limit]
     if not detalle:
@@ -967,11 +976,11 @@ if __name__ == "__main__":
         if args.imagenes:
             reporte_imagenes = await evaluar_imagenes()
 
-        if not args.imagenes or args.limit > 0 or not args.no_ragas:
-            if not args.imagenes:
-                await evaluar(limit=args.limit, skip_ragas=args.no_ragas, indices=indices)
-            elif args.limit > 0:
-                await evaluar(limit=args.limit, skip_ragas=args.no_ragas, indices=indices)
+        # Evaluación de texto/RAGAS: siempre, salvo cuando se pidió SOLO
+        # --imagenes (sin --limit), en cuyo caso corre únicamente el
+        # diagnóstico imagen→imagen.
+        if not args.imagenes or args.limit > 0:
+            await evaluar(limit=args.limit, skip_ragas=args.no_ragas, indices=indices)
 
         if reporte_imagenes:
             reporte_path = Path(__file__).parent / "reporte_ragas.json"

@@ -49,7 +49,11 @@ class AsistenteHistologiaQdrant:
         self.uni: Optional[UniWrapper] = None
         self.plip: Optional[PlipWrapper] = None
 
-        self.memoria: Optional[SemanticMemory] = None
+        # Memoria por sesión: cada user_id tiene su propia conversación / imagen
+        # activa. Comparten un único cliente Qdrant (_memoria_qdrant) porque el
+        # Qdrant embebido toma un lock exclusivo sobre el directorio.
+        self._memorias: Dict[str, SemanticMemory] = {}
+        self._memoria_qdrant = None
         self.qdrant_store: Optional[QdrantVectorStore] = None
         self.extractor_imagenes = ExtractorImagenesPDF(DIRECTORIO_IMAGENES)
         self.extractor_temario: Optional[ExtractorTemario] = None
@@ -60,8 +64,6 @@ class AsistenteHistologiaQdrant:
         self.compiled_graph = None
         self.memory_saver = None
         self.contenido_base = ""
-
-        self._ultimo_resultado: dict = {}
 
         self.device = self._detect_device()
         print(f"✅ AsistenteHistologiaQdrant v5.0 inicializado en {self.device}")
@@ -82,10 +84,8 @@ class AsistenteHistologiaQdrant:
 
     async def inicializar_componentes(self):
         self._init_modelos()
-        self.memoria = SemanticMemory(
-            llm=self.llm, embeddings=self.embeddings,
-            uni=self.uni, plip=self.plip,
-        )
+        # Prepara la colección de memoria y el cliente compartido (sesión default).
+        self._get_memoria("default_user")
         self.extractor_temario = ExtractorTemario(llm=self.llm)
         self.extractor_entidades = ExtractorEntidades(llm=self.llm)
         self.clasificador_semantico = ClasificadorSemantico(
@@ -157,12 +157,34 @@ class AsistenteHistologiaQdrant:
 
         self.graph = g
 
+    # ── Memoria por sesión ──────────────────────────────────────────────────────
+
+    def _get_memoria(self, user_id: Optional[str]) -> SemanticMemory:
+        """Devuelve (creándola si hace falta) la memoria de la sesión `user_id`.
+
+        Cada sesión tiene su propio historial e imagen activa; todas comparten un
+        único cliente Qdrant para no chocar con el lock del Qdrant embebido.
+        """
+        user_id = user_id or "default_user"
+        mem = self._memorias.get(user_id)
+        if mem is None:
+            mem = SemanticMemory(
+                llm=self.llm, embeddings=self.embeddings,
+                uni=self.uni, plip=self.plip,
+                qdrant_client=self._memoria_qdrant,
+            )
+            # La primera instancia crea el cliente local; lo reusamos en las demás.
+            if self._memoria_qdrant is None:
+                self._memoria_qdrant = mem._qdrant
+            self._memorias[user_id] = mem
+        return mem
+
     # ── Routers ───────────────────────────────────────────────────────────────
 
     async def _route_por_modo(self, state: AgentState) -> str:
         imagen_path = state.get("imagen_path")
         tiene_imagen_nueva = imagen_path and os.path.exists(imagen_path)
-        tiene_imagen_memoria = self.memoria and self.memoria.tiene_imagen_previa()
+        tiene_imagen_memoria = self._get_memoria(state.get("user_id")).tiene_imagen_previa()
 
         if tiene_imagen_nueva:
             print("🖼️ Modo multimodal (imagen nueva)")
@@ -205,8 +227,9 @@ class AsistenteHistologiaQdrant:
 
     async def _nodo_inicializar(self, state: AgentState) -> AgentState:
         print("📝 Inicializando flujo v5.0...")
+        memoria = self._get_memoria(state.get("user_id"))
         consulta_original = state.get("consulta_texto", "")
-        historial = self.memoria.get_history_for_prompt(5)
+        historial = memoria.get_history_for_prompt(5)
         state["historial_conversacional"] = historial
 
         consulta = await self._reescribir_consulta_con_contexto(consulta_original, historial)
@@ -221,7 +244,7 @@ class AsistenteHistologiaQdrant:
                 state["consulta_texto"] = consulta_imagen
 
         state.update({
-            "contexto_memoria": self.memoria.get_context(state.get("consulta_texto", "")),
+            "contexto_memoria": memoria.get_context(state.get("consulta_texto", "")),
             "contenido_base": self.contenido_base,
             "tiempo_inicio": time.time(),
             "tiene_imagen": False,
@@ -246,6 +269,7 @@ class AsistenteHistologiaQdrant:
         t0 = time.time()
         print("🖼️ Procesando imagen...")
 
+        memoria = self._get_memoria(state.get("user_id"))
         imagen_path_nuevo = state.get("imagen_path")
         imagen_es_nueva = False
 
@@ -253,11 +277,11 @@ class AsistenteHistologiaQdrant:
             imagen_path_activo = imagen_path_nuevo
             imagen_es_nueva = True
             print(f"   🆕 Nueva imagen: {imagen_path_activo}")
-        elif self.memoria.tiene_imagen_previa():
-            imagen_path_activo = self.memoria.get_imagen_activa()
+        elif memoria.tiene_imagen_previa():
+            imagen_path_activo = memoria.get_imagen_activa()
             state["imagen_path"] = imagen_path_activo
-            state["analisis_visual"] = self.memoria.analisis_visual_activo
-            print(f"   ♻️  Reutilizando imagen del turno {self.memoria.imagen_turno_subida}")
+            state["analisis_visual"] = memoria.analisis_visual_activo
+            print(f"   ♻️  Reutilizando imagen del turno {memoria.imagen_turno_subida}")
         else:
             imagen_path_activo = None
 
@@ -272,7 +296,7 @@ class AsistenteHistologiaQdrant:
 
                 if imagen_es_nueva or not state.get("analisis_visual"):
                     state["analisis_visual"] = await self._describir_imagen(imagen_path_activo)
-                    self.memoria.set_imagen(imagen_path_activo, state["analisis_visual"])
+                    memoria.set_imagen(imagen_path_activo, state["analisis_visual"])
                     print(f"   🔬 Análisis visual generado ({len(state['analisis_visual'])} chars)")
                 else:
                     print("   ♻️  Reutilizando análisis visual previo")
@@ -448,7 +472,9 @@ class AsistenteHistologiaQdrant:
         if state.get("mostrar_imagenes", False):
             print("   🖼️ Búsqueda semántica de imágenes...")
             imgs = await self.qdrant_store.busqueda_imagenes_semantica(
-                texto_embedding=state.get("texto_embedding", []),
+                # La clave siempre existe (se inicializa en None), así que el
+                # default [] de .get nunca aplicaba; lo forzamos a [] si es None.
+                texto_embedding=state.get("texto_embedding") or [],
                 entidades=entidades,
                 embeddings_model=self.embeddings,
                 top_k=3,
@@ -838,9 +864,14 @@ class AsistenteHistologiaQdrant:
                 for i, img in enumerate(imgs, 1)
             ]
             instruccion_imagenes = (
-                "\nIMÁGENES ENCONTRADAS EN LA BASE DE DATOS:\n"
+                "\nIMÁGENES DE REFERENCIA QUE SE MUESTRAN AL USUARIO (debajo de tu respuesta):\n"
                 + "\n".join(descripciones)
-                + "\n\nINSTRUCCIÓN: Describí brevemente cada imagen usando el caption del manual.\n"
+                + "\n\nINSTRUCCIÓN SOBRE LAS IMÁGENES:\n"
+                "- Estas imágenes del manual se muestran automáticamente debajo de tu respuesta.\n"
+                "- NO afirmes que 'no hay imágenes' ni cuestiones su existencia o disponibilidad.\n"
+                "- Enfocate en explicar el tema consultado; podés referirte a las imágenes con "
+                "naturalidad (p. ej. 'en las imágenes de referencia se observa...') y describirlas "
+                "brevemente con su caption del manual.\n"
             )
 
         if es_solo_texto:
@@ -918,7 +949,7 @@ class AsistenteHistologiaQdrant:
                 ext = os.path.splitext(imagen_path)[1].lower()
                 mime = "image/png" if ext == ".png" else "image/jpeg"
                 label = ("NUEVA IMAGEN" if state.get("imagen_es_nueva")
-                         else f"IMAGEN ACTIVA (turno {self.memoria.imagen_turno_subida})")
+                         else f"IMAGEN ACTIVA (turno {self._get_memoria(state.get('user_id')).imagen_turno_subida})")
                 content_parts.append({"type": "text", "text": f"\n**{label}:**"})
                 content_parts.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{data}"}})
             except Exception as e:
@@ -1003,7 +1034,8 @@ class AsistenteHistologiaQdrant:
 
     async def _nodo_finalizar(self, state: AgentState) -> AgentState:
         if state.get("respuesta_final"):
-            self.memoria.add_interaction(state["consulta_texto"], state["respuesta_final"])
+            self._get_memoria(state.get("user_id")).add_interaction(
+                state["consulta_texto"], state["respuesta_final"])
 
         total = round(time.time() - state["tiempo_inicio"], 2)
         state["trayectoria"].append({"nodo": "Finalizar", "tiempo_total": total})
@@ -1376,14 +1408,15 @@ class AsistenteHistologiaQdrant:
         consulta_texto: str,
         imagen_path: Optional[str] = None,
         user_id: str = "default_user",
-    ) -> str:
-        tiene_imagen_activa = self.memoria.tiene_imagen_previa() or bool(imagen_path)
+    ) -> dict:
+        memoria = self._get_memoria(user_id)
+        tiene_imagen_activa = memoria.tiene_imagen_previa() or bool(imagen_path)
 
         print(f"\n{'='*70}")
         print(f"🔬 RAG Histología Qdrant v5.0 | umbral={self.SIMILARITY_THRESHOLD}")
         print(f"   Texto:          {consulta_texto}")
         print(f"   Imagen turno:   {imagen_path or 'ninguna'}")
-        print(f"   Imagen memoria: {self.memoria.get_imagen_activa() or 'ninguna'}")
+        print(f"   Imagen memoria: {memoria.get_imagen_activa() or 'ninguna'}")
         print(f"{'='*70}")
 
         initial_state = AgentState(
@@ -1431,15 +1464,20 @@ class AsistenteHistologiaQdrant:
         print(respuesta)
         print("=" * 70)
 
-        self._ultimo_resultado = {
+        imagen_activa = memoria.get_imagen_activa()
+        # Devolvemos el resultado completo (en vez de dejarlo en un atributo
+        # compartido `_ultimo_resultado`) para que dos requests concurrentes no
+        # se pisen: cada llamador se queda con su propio dict.
+        resultado = {
             "respuesta": respuesta,
             "mostrar_imagenes": final.get("mostrar_imagenes", False),
             "imagenes_recuperadas": final.get("imagenes_recuperadas", []),
             "estructura_identificada": final.get("estructura_identificada"),
             "imagenes_para_mostrar": final.get("imagenes_para_mostrar", []),
             "trayectoria": final.get("trayectoria", []),
+            "imagen_activa": os.path.basename(imagen_activa) if imagen_activa else None,
         }
-        return respuesta
+        return resultado
 
     async def cerrar(self):
         if self.qdrant_store:

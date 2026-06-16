@@ -74,6 +74,10 @@ async def invoke_con_reintento(llm, messages, max_retries=None):
             else:
                 raise
 
+    # Si max_retries fuese 0 (p. ej. LLM_MAX_RETRIES=0) el bucle no se ejecuta:
+    # nunca devolvemos None silenciosamente al llamador.
+    raise RuntimeError(_quota_message())
+
 
 def invoke_con_reintento_sync(llm, messages, max_retries=None):
     if _quota_blocked():
@@ -100,6 +104,8 @@ def invoke_con_reintento_sync(llm, messages, max_retries=None):
             else:
                 raise
 
+    raise RuntimeError(_quota_message())
+
 
 def embed_query_con_reintento(embeddings, texto: str, max_retries: int = 5):
     for attempt in range(max_retries):
@@ -116,6 +122,8 @@ def embed_query_con_reintento(embeddings, texto: str, max_retries: int = 5):
                     raise
             else:
                 raise
+
+    raise RuntimeError("No se pudo generar el embedding tras varios reintentos.")
 
 
 def embed_documents_con_reintento(embeddings, textos: list, max_retries: int = 5):
@@ -134,13 +142,29 @@ def embed_documents_con_reintento(embeddings, textos: list, max_retries: int = 5
             else:
                 raise
 
+    raise RuntimeError("No se pudieron generar los embeddings tras varios reintentos.")
+
 
 # ── LangSmith ─────────────────────────────────────────────────────────────────
 
 def setup_langsmith():
+    def _dummy_traceable(*args, **kwargs):
+        def decorator(func): return func
+        if len(args) == 1 and callable(args[0]):
+            return args[0]
+        return decorator
+
+    api_key = userdata.get("LANGSMITH_API_KEY")
+    if not api_key:
+        # Sin API key no activamos el tracing: si no, LangChain intenta enviar
+        # trazas a LangSmith sin credenciales y spamea errores 401.
+        os.environ["LANGCHAIN_TRACING_V2"] = "false"
+        print("ℹ️ LangSmith deshabilitado (sin LANGSMITH_API_KEY)")
+        return False, _dummy_traceable, None
+
     config = {
         "LANGCHAIN_TRACING_V2": "true",
-        "LANGCHAIN_API_KEY": userdata.get("LANGSMITH_API_KEY"),
+        "LANGCHAIN_API_KEY": api_key,
         "LANGCHAIN_ENDPOINT": "https://api.smith.langchain.com",
         "LANGCHAIN_PROJECT": userdata.get("LANGSMITH_PROJECT") or "rag-histologia",
     }
@@ -154,14 +178,7 @@ def setup_langsmith():
         return True, traceable, client
     except Exception as e:
         print(f"⚠️ LangSmith no disponible: {e}")
-
-        def dummy_traceable(*args, **kwargs):
-            def decorator(func): return func
-            if len(args) == 1 and callable(args[0]):
-                return args[0]
-            return decorator
-
-        return False, dummy_traceable, None
+        return False, _dummy_traceable, None
 
 
 LANGSMITH_ENABLED, traceable, langsmith_client = setup_langsmith()

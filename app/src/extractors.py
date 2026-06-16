@@ -16,7 +16,10 @@ import fitz  # PyMuPDF
 from langchain_core.messages import HumanMessage, SystemMessage
 from PIL import Image
 
-from .config import DIRECTORIO_IMAGENES, DIM_TEXTO, normalizar as _normalizar
+from .config import (
+    DIRECTORIO_IMAGENES, DIM_TEXTO, extraer_entidades_por_reglas,
+    normalizar as _normalizar,
+)
 from .embeddings import ImageExtractionConfig
 from .llm import invoke_con_reintento
 
@@ -325,63 +328,12 @@ class ExtractorEntidades:
         return salida
 
     def _extraer_reglas(self, texto: str) -> Dict[str, List[str]]:
-        """Deterministic entity extraction to supplement LLM output."""
-        texto_norm = _normalizar(texto)
-        reglas = {
-            "tejidos": {
-                "musculo liso": ["musculo liso", "musculares lisas", "musculares lisos"],
-                "tejido conectivo": ["tejido conectivo", "conectivo colageno", "fibras colagenas"],
-                "epitelio seminifero": ["epitelio seminifero"],
-                "endotelio": ["endotelio", "endoteliales"],
-            },
-            "estructuras": {
-                "tunica intima": ["tunica intima"],
-                "tunica media": ["tunica media"],
-                "tunica adventicia": ["tunica adventicia", "adventicia", "tunica externa"],
-                "lamina elastica interna": ["lamina elastica interna"],
-                "lamina elastica externa": ["lamina elastica externa"],
-                "tubulo seminifero": ["tubulo seminifero", "tubulos seminiferos"],
-                "intersticio testicular": ["intersticio testicular", "intersticio"],
-                "membrana basal": ["membrana basal"],
-            },
-            "tinciones": {
-                "hematoxilina-eosina": ["hematoxilina", "eosina", "h&e", "he"],
-            },
-            "dominios": {
-                "vasos sanguineos": ["arteria", "arterial", "arteriola", "vena", "venula",
-                                     "vaso sanguineo", "vascular", "tunica intima", "tunica media"],
-                "testiculo": ["testiculo", "testicular", "seminifero", "seminiferos",
-                              "sertoli", "leydig", "espermatogonia", "espermatide",
-                              "peritubular", "mioide"],
-            },
-            "organos": {
-                "arteria muscular": ["arteria muscular"],
-                "testiculo": ["testiculo", "testicular"],
-                "tubulo seminifero": ["tubulo seminifero", "tubulos seminiferos"],
-            },
-            "celulas": {
-                "celula de sertoli": ["sertoli"],
-                "celula de leydig": ["leydig"],
-                "espermatogonia": ["espermatogonia"],
-                "espermatide": ["espermatide", "espermátide"],
-                "celula peritubular": ["peritubular", "mioide"],
-                "celula endotelial": ["endotelial", "endoteliales"],
-            },
-            "temas": {
-                "arteria muscular": ["arteria muscular"],
-                "capas arteriales": ["tunica intima", "tunica media", "tunica adventicia", "tunica externa"],
-                "laminas elasticas": ["lamina elastica interna", "lamina elastica externa"],
-                "espermatogenesis": ["espermatogenesis", "espermatogonia", "espermatide"],
-                "epitelio seminifero": ["epitelio seminifero", "tubulo seminifero"],
-                "intersticio testicular": ["intersticio", "leydig"],
-            },
-        }
-        entidades = {k: [] for k in reglas}
-        for categoria, valores in reglas.items():
-            for etiqueta, patrones in valores.items():
-                if any(_normalizar(p) in texto_norm for p in patrones):
-                    entidades[categoria].append(etiqueta)
-        return entidades
+        """Deterministic entity extraction to supplement LLM output.
+
+        Las reglas viven en config.REGLAS_ENTIDADES (fuente única compartida con
+        el script de backfill) para no duplicar el diccionario.
+        """
+        return extraer_entidades_por_reglas(texto)
 
     async def extraer_de_texto(self, texto: str) -> Dict[str, List[str]]:
         try:

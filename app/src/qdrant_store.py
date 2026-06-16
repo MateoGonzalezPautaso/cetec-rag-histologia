@@ -566,7 +566,11 @@ class QdrantVectorStore:
             top3 = [(r["nombre_archivo"], round(r["similitud_semantica"], 3)) for r in rankeadas[:3]]
             print(f"   📊 Re-ranking top-3: {top3}")
 
-        UMBRAL = 0.55
+        # Umbral de similitud caption↔consulta (MiniLM). 0.55 era demasiado
+        # exigente: matches válidos rondan ~0.4 y nunca pasaban. Los filtros
+        # posteriores (fuente dominante + keywords en el caption) limpian el
+        # resto, así que un umbral más bajo es seguro. Tunable por env.
+        UMBRAL = float(os.getenv("IMG_RERANK_UMBRAL", "0.35"))
         filtradas = [r for r in rankeadas if r["similitud_semantica"] >= UMBRAL]
 
         # Filter by dominant source
@@ -639,11 +643,13 @@ class QdrantVectorStore:
         tiene_imagen = imagen_embedding_uni is not None or imagen_embedding_plip is not None
 
         if tiene_imagen:
-            top_img = [r for r in (res_uni + res_plip) if r.get("similitud", 0) > 0.75]
+            # res_uni / res_plip ya vienen filtrados por similitud >= 0.80,
+            # así que tomamos directamente los mejores resultados.
+            top_img = res_uni + res_plip
             for img_r in top_img[:3]:
                 fuente = img_r.get("fuente", "")
                 pagina = img_r.get("pagina")
-                if fuente and pagina:
+                if fuente and pagina is not None:
                     res_pag_chunks.extend(await self.busqueda_chunks_por_pagina(fuente, pagina))
 
         if texto_embedding and incluir_imagenes_texto:

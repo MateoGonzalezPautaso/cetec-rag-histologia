@@ -92,6 +92,61 @@ ANCLAS_SEMANTICAS_HISTOLOGIA = [
 ]
 
 
+# ── Reglas de extracción de entidades (fuente única) ──────────────────────────
+# Usadas tanto por el pipeline en vivo (extractors.ExtractorEntidades) como por
+# el backfill (backfill_metadata_payloads). Antes estaban duplicadas en ambos
+# lados y divergían al editar solo uno.
+REGLAS_ENTIDADES = {
+    "tejidos": {
+        "musculo liso": ["musculo liso", "musculares lisas", "musculares lisos"],
+        "tejido conectivo": ["tejido conectivo", "conectivo colageno", "fibras colagenas"],
+        "epitelio seminifero": ["epitelio seminifero"],
+        "endotelio": ["endotelio", "endoteliales"],
+    },
+    "estructuras": {
+        "tunica intima": ["tunica intima"],
+        "tunica media": ["tunica media"],
+        "tunica adventicia": ["tunica adventicia", "adventicia", "tunica externa"],
+        "lamina elastica interna": ["lamina elastica interna"],
+        "lamina elastica externa": ["lamina elastica externa"],
+        "tubulo seminifero": ["tubulo seminifero", "tubulos seminiferos"],
+        "intersticio testicular": ["intersticio testicular", "intersticio"],
+        "membrana basal": ["membrana basal"],
+    },
+    "tinciones": {
+        "hematoxilina-eosina": ["hematoxilina", "eosina", "h&e", "he"],
+    },
+    "dominios": {
+        "vasos sanguineos": ["arteria", "arterial", "arteriola", "vena", "venula",
+                             "vaso sanguineo", "vascular", "tunica intima", "tunica media"],
+        "testiculo": ["testiculo", "testicular", "seminifero", "seminiferos",
+                      "sertoli", "leydig", "espermatogonia", "espermatide",
+                      "peritubular", "mioide"],
+    },
+    "organos": {
+        "arteria muscular": ["arteria muscular"],
+        "testiculo": ["testiculo", "testicular"],
+        "tubulo seminifero": ["tubulo seminifero", "tubulos seminiferos"],
+    },
+    "celulas": {
+        "celula de sertoli": ["sertoli"],
+        "celula de leydig": ["leydig"],
+        "espermatogonia": ["espermatogonia"],
+        "espermatide": ["espermatide", "espermátide"],
+        "celula peritubular": ["peritubular", "mioide"],
+        "celula endotelial": ["endotelial", "endoteliales"],
+    },
+    "temas": {
+        "arteria muscular": ["arteria muscular"],
+        "capas arteriales": ["tunica intima", "tunica media", "tunica adventicia", "tunica externa"],
+        "laminas elasticas": ["lamina elastica interna", "lamina elastica externa"],
+        "espermatogenesis": ["espermatogenesis", "espermatogonia", "espermatide"],
+        "epitelio seminifero": ["epitelio seminifero", "tubulo seminifero"],
+        "intersticio testicular": ["intersticio", "leydig"],
+    },
+}
+
+
 # ── Utilities ─────────────────────────────────────────────────────────────────
 
 def _safe(value, default: str = "") -> str:
@@ -104,3 +159,14 @@ def normalizar(texto: str) -> str:
         c for c in unicodedata.normalize("NFD", texto)
         if unicodedata.category(c) != "Mn"
     )
+
+
+def extraer_entidades_por_reglas(texto: str) -> dict:
+    """Extracción determinística de entidades según REGLAS_ENTIDADES."""
+    texto_norm = normalizar(texto)
+    entidades = {categoria: [] for categoria in REGLAS_ENTIDADES}
+    for categoria, valores in REGLAS_ENTIDADES.items():
+        for etiqueta, patrones in valores.items():
+            if any(normalizar(patron) in texto_norm for patron in patrones):
+                entidades[categoria].append(etiqueta)
+    return entidades

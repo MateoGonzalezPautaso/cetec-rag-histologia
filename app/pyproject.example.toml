@@ -1,0 +1,85 @@
+# =============================================================================
+# Plantilla de pyproject.toml para RAG Histología.
+#
+# El pyproject.toml real (app/pyproject.toml) NO se versiona (está en
+# .gitignore) porque las dependencias dependen de la máquina, en particular el
+# build de PyTorch (CPU vs. CUDA) y su índice de descarga.
+#
+# Uso:
+#   cp app/pyproject.example.toml app/pyproject.toml
+#   # elegí el índice de torch según tu hardware (ver el final del archivo)
+#   cd app && uv sync
+# =============================================================================
+
+[project]
+name = "rag-histologia-qdrant"
+version = "5.0.0"
+description = "RAG Multimodal de Histología con UNI/PLIP + Qdrant"
+requires-python = ">=3.10"
+dependencies = [
+    # Qdrant
+    "qdrant-client>=1.17.0",
+    "pdf2image>=1.16",
+    "pytesseract>=0.3",
+    # LangChain / LangGraph
+    "langchain-core>=0.3",
+    "langgraph>=0.2",
+    "langchain-huggingface>=0.1.0",
+    "sentence-transformers>=3.0.0",
+    # LangSmith observability
+    "langsmith>=0.1",
+    # ML / Torch
+    "torch==2.6.0",
+    "torchvision==0.21.0",
+    "numpy>=1.24",
+    "Pillow>=10.0",
+    # Async
+    "nest-asyncio>=1.5",
+    # Environment
+    "python-dotenv>=1.0",
+    # UNI / PLIP (Mahmood Lab) via timm
+    "timm>=0.9.12",
+    "huggingface-hub",
+    "einops",
+    # Server (fullstack A2UI)
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.0",
+    "python-multipart>=0.0.6",
+    "pymupdf>=1.27.1",
+    "langchain-groq>=1.1.2",
+    "ragas>=0.4.3",
+    "datasets>=4.8.5",
+]
+
+[tool.setuptools]
+packages = []
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+# ── PyTorch: elegí UNA opción según tu hardware ──────────────────────────────
+# Opción A (por defecto): solo CPU. Liviano y funciona en cualquier máquina
+# (no requiere GPU). Si tenés GPU NVIDIA y querés acelerar, usá la Opción B.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
+
+# Opción B: GPU NVIDIA con CUDA 11.8 (descarga ~2 GB de ruedas CUDA). Para
+# usarla: comentá el bloque de la Opción A (las dos secciones de arriba) y
+# descomentá las de abajo.
+# [[tool.uv.index]]
+# name = "pytorch-cu118"
+# url = "https://download.pytorch.org/whl/cu118"
+# explicit = true
+#
+# [tool.uv.sources]
+# torch = { index = "pytorch-cu118" }
+# torchvision = { index = "pytorch-cu118" }
+# torchaudio = { index = "pytorch-cu118" }

@@ -10,7 +10,26 @@ const API_BASE = '';
 // ── State ───────────────────────────────────────────────────────────
 let pendingImageBase64 = null;
 let pendingImageName = null;
+let pendingImagePromise = null;  // resuelve cuando el FileReader terminó de leer
 let isWaiting = false;
+
+// Identificador de sesión por navegador. Aísla la conversación, la imagen
+// activa y la memoria de cada usuario en el backend (evita fugas entre sesiones).
+function getSessionId() {
+    let sid = null;
+    try {
+        sid = localStorage.getItem('histo_session_id');
+        if (!sid) {
+            sid = (crypto.randomUUID && crypto.randomUUID()) ||
+                  `s-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            localStorage.setItem('histo_session_id', sid);
+        }
+    } catch {
+        // localStorage deshabilitado: usamos un id efímero en memoria.
+        sid = sid || `s-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+    return sid;
+}
 
 // ── DOM refs ────────────────────────────────────────────────────────
 const messagesContainer = document.getElementById('messages-container');
@@ -29,6 +48,7 @@ document.addEventListener('paste', handlePasteImage);
 closeTemario();
 
 async function checkStatus() {
+    if (!statusDot || !statusText) return;  // DOM no listo / ids renombrados
     try {
         const res = await fetch(`${API_BASE}/api/status`);
         const data = await res.json();
@@ -108,7 +128,13 @@ async function sendMessage() {
     const typingEl = showTyping();
 
     try {
-        const body = { query };
+        // Si hay una imagen todavía cargándose (FileReader async), esperamos
+        // a que termine para no enviar la consulta sin la imagen adjunta.
+        if (pendingImagePromise) {
+            try { await pendingImagePromise; } catch { /* lectura falló: seguimos sin imagen */ }
+        }
+
+        const body = { query, session_id: getSessionId() };
         if (pendingImageBase64) {
             body.image_base64 = pendingImageBase64;
             body.image_filename = pendingImageName;
@@ -120,8 +146,6 @@ async function sendMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
-
-        removeTyping(typingEl);
 
         console.log("Response status:", chatRes.status);
         if (!chatRes.ok) {
@@ -136,15 +160,16 @@ async function sendMessage() {
         }
 
     } catch (err) {
-        removeTyping(typingEl);
         addMessage('assistant', 'No pude conectarme con el asistente. Verificá que el servidor esté abierto e intentá nuevamente.');
+    } finally {
+        // Cleanup garantizado: aunque addMessage/render lancen, el input no
+        // queda bloqueado (isWaiting=true) para siempre.
+        removeTyping(typingEl);
+        removeImage();
+        isWaiting = false;
+        sendBtn.disabled = false;
+        checkStatus();
     }
-
-    // Cleanup
-    removeImage();
-    isWaiting = false;
-    sendBtn.disabled = false;
-    checkStatus();
 }
 
 function normalizeAssistantResponse(text, metadata) {
@@ -180,6 +205,7 @@ function friendlyClientError(status) {
 
 // ── Send chip ───────────────────────────────────────────────────────
 function sendChip(el) {
+    if (isWaiting) return;  // no pisar el input con texto que no se enviará
     chatInput.value = el.textContent;
     sendMessage();
 }
@@ -227,30 +253,45 @@ function handlePasteImage(event) {
 
 function setPendingImage(file) {
     const reader = new FileReader();
-    reader.onload = (e) => {
-        const base64Full = e.target.result;
-        // Strip "data:image/xxx;base64," prefix
-        pendingImageBase64 = base64Full.split(',')[1];
-        pendingImageName = file.name;
+    // Exponemos una promesa para que sendMessage pueda esperar a que la lectura
+    // termine; si no, al enviar enseguida se mandaría la consulta sin la imagen.
+    pendingImagePromise = new Promise((resolve, reject) => {
+        reader.onload = (e) => {
+            const base64Full = e.target.result;
+            // Strip "data:image/xxx;base64," prefix
+            pendingImageBase64 = base64Full.split(',')[1];
+            pendingImageName = file.name;
 
-        // Show preview
-        document.getElementById('image-thumb').src = base64Full;
-        document.getElementById('image-name').textContent = file.name;
-        document.getElementById('image-size').textContent = formatBytes(file.size);
-        document.getElementById('image-preview-bar').classList.add('visible');
-    };
+            // Show preview
+            document.getElementById('image-thumb').src = base64Full;
+            document.getElementById('image-name').textContent = file.name;
+            document.getElementById('image-size').textContent = formatBytes(file.size);
+            document.getElementById('image-preview-bar').classList.add('visible');
+            resolve();
+        };
+        reader.onerror = () => {
+            pendingImageBase64 = null;
+            pendingImageName = null;
+            reject(reader.error);
+        };
+    });
     reader.readAsDataURL(file);
 }
 
 function removeImage() {
     pendingImageBase64 = null;
     pendingImageName = null;
+    pendingImagePromise = null;
     document.getElementById('image-preview-bar').classList.remove('visible');
 }
 
 async function limpiarImagen() {
     try {
-        await fetch(`${API_BASE}/api/imagen/limpiar`, { method: 'POST' });
+        await fetch(`${API_BASE}/api/imagen/limpiar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: getSessionId() }),
+        });
         removeImage();
         checkStatus();
     } catch { }
@@ -427,14 +468,17 @@ function inferAnswerStatus(text) {
     if (lower.includes('información es parcial') || lower.includes('información parcial') || lower.includes('no está disponible')) {
         return { label: 'Respuesta parcial', type: 'partial' };
     }
-    if (lower.includes('[manual:') || lower.includes('manual:')) {
+    // Solo marcamos "Basado en manual" ante una cita real con corchete
+    // ([Manual: ...]); la prosa suelta "según el manual:" no es una fuente.
+    if (lower.includes('[manual:')) {
         return { label: 'Basado en manual', type: 'manual' };
     }
     return { label: 'Revisar fuente', type: 'info' };
 }
 
 function extractManualSources(text) {
-    const matches = [...text.matchAll(/\[?Manual:\s*([^\]\n|]+)(?:[^\]]*)?\]?/gi)];
+    // Requiere el corchete de cita real para no capturar prosa como fuente.
+    const matches = [...text.matchAll(/\[Manual:\s*([^\]\n|]+)/gi)];
     return [...new Set(matches.map((m) => m[1].trim()).filter(Boolean))];
 }
 
@@ -576,6 +620,8 @@ function formatBytes(bytes) {
 }
 
 // ── Lightbox for database images ────────────────────────────────────
+let lightboxEscHandler = null;
+
 function openLightbox(url, title, caption) {
     // Remove existing lightbox if any
     const existing = document.getElementById('image-lightbox');
@@ -622,19 +668,25 @@ function openLightbox(url, title, caption) {
     overlay.appendChild(container);
     document.body.appendChild(overlay);
 
-    // Close on Escape
-    const escHandler = (e) => {
-        if (e.key === 'Escape') {
-            closeLightbox();
-            document.removeEventListener('keydown', escHandler);
-        }
+    // Close on Escape. Guardamos el handler a nivel de módulo para poder
+    // removerlo siempre desde closeLightbox (se cierre con Escape, con la X
+    // o haciendo click en el fondo) y no acumular listeners.
+    if (lightboxEscHandler) {
+        document.removeEventListener('keydown', lightboxEscHandler);
+    }
+    lightboxEscHandler = (e) => {
+        if (e.key === 'Escape') closeLightbox();
     };
-    document.addEventListener('keydown', escHandler);
+    document.addEventListener('keydown', lightboxEscHandler);
 }
 
 function closeLightbox() {
     const lb = document.getElementById('image-lightbox');
     if (lb) lb.remove();
+    if (lightboxEscHandler) {
+        document.removeEventListener('keydown', lightboxEscHandler);
+        lightboxEscHandler = null;
+    }
 }
 
 
