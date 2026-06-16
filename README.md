@@ -162,6 +162,9 @@ La primera vez también crea un acceso directo **«RAG Histología»** en el esc
 | Tesseract OCR | Extraer texto de imágenes en PDFs | `sudo apt install tesseract-ocr tesseract-ocr-spa` |
 | Poppler | Renderizar PDFs como imágenes | `sudo apt install poppler-utils` |
 
+> **Hardware:** no requiere GPU — corre en **CPU** por defecto (una GPU NVIDIA con CUDA solo acelera).
+> Recomendado **≥ 8 GB de RAM**. La primera ejecución descarga el modelo **UNI (~1.2 GB)** desde HuggingFace.
+
 ---
 
 ## Configuración
@@ -177,11 +180,12 @@ cp .env.example app/.env
 | `GROQ_API_KEY` | ✅ | LLM principal (Llama-4-Scout) | https://console.groq.com/keys |
 | `HF_TOKEN` | ✅ | Descarga modelos UNI y PLIP — requiere aceptar los términos del modelo | https://huggingface.co/settings/tokens |
 | `QDRANT_PATH` | ❌ | Carpeta local persistente de Qdrant. Por defecto: `./qdrant_data` | No aplica |
-| `QDRANT_URL` | ❌ | URL de Qdrant remoto si se quiere usar Cloud en lugar de local | https://cloud.qdrant.io/ |
+| `QDRANT_URL` | ❌ | URL de Qdrant remoto (Cloud). **Dejar VACÍO para usar la base local** — un valor placeholder/inválido hace fallar la conexión con un error de DNS | https://cloud.qdrant.io/ |
 | `QDRANT_KEY` | ❌ | API key para Qdrant remoto | https://cloud.qdrant.io/ |
 | `LANGSMITH_API_KEY` | ❌ | Trazabilidad del pipeline. El sistema funciona sin esto | https://smith.langchain.com/ |
 | `ALLOWED_ORIGINS` | ❌ | Orígenes CORS permitidos (lista separada por comas, o `*`). Por defecto solo `localhost`/`127.0.0.1` | No aplica |
 | `MAX_IMAGE_MB` | ❌ | Tamaño máximo (MB) de imágenes subidas por el chat. Por defecto: `8` | No aplica |
+| `IMG_RERANK_UMBRAL` | ❌ | Umbral de similitud caption↔consulta para mostrar imágenes del manual. Por defecto: `0.35`. Subilo si aparecen imágenes poco relevantes | No aplica |
 
 ---
 
@@ -331,13 +335,15 @@ Material complementario para entender el diseño, las decisiones y los resultado
 ## Troubleshooting
 
 **El servidor no arranca / error al cargar modelos**
-- Verificar que `HF_TOKEN` esté en `.env` y que hayas aceptado los términos de UNI en HuggingFace.
+- `403 ... Access to model MahmoodLab/UNI is restricted`: UNI es un modelo **gated**. Pedí acceso en https://huggingface.co/MahmoodLab/UNI ("Agree and access repository") y esperá la aprobación; el `HF_TOKEN` tiene que ser de **esa misma cuenta**.
+- Verificar que `HF_TOKEN` esté en `app/.env`.
 - Si no hay GPU compatible, el sistema usa CPU automáticamente (más lento).
 
-**Qdrant no conecta**
+**Qdrant no conecta** (p. ej. `[Errno -2] Name or service not known`)
+- Para usar la base **local**, `QDRANT_URL` debe estar **vacío** en `app/.env`. Un valor heredado o placeholder (como el de `.env.example`) hace que intente conectar a un host inexistente → error de DNS.
 - Por defecto no se necesita Qdrant Cloud: se usa `app/qdrant_data/`.
 - Verificar permisos de escritura en la carpeta `app/`.
-- Si se configuró `QDRANT_URL`, verificar también `QDRANT_URL` y `QDRANT_KEY` en `.env`.
+- Si se configuró `QDRANT_URL`, verificar también `QDRANT_KEY`.
 
 **El LLM responde "sin cuota"**
 - La cuota de Groq se resetea diariamente. Esperar o cambiar `GROQ_API_KEY`.
@@ -345,6 +351,8 @@ Material complementario para entender el diseño, las decisiones y los resultado
 
 **No aparecen imágenes del manual**
 - Verificar que los PDFs estén en `data/pdf/` o `app/pdf/` y que Qdrant tenga datos (`/api/status` muestra `n_temas > 0`).
+- **UNI debe haber cargado** (ver arriba): sin UNI no se indexan imágenes.
+- Si la respuesta sale solo en texto pese a haber imágenes relevantes, bajá `IMG_RERANK_UMBRAL` (por defecto `0.35`).
 - Tesseract y Poppler deben estar instalados para la extracción.
 
 ---
