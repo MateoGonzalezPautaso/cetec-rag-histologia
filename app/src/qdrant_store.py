@@ -16,7 +16,7 @@ from qdrant_client.models import (
 from .config import (
     COLLECTION_CHUNKS, COLLECTION_IMAGENES,
     DIM_IMG_PLIP, DIM_IMG_UNI, DIM_TEXTO,
-    INDEX_PLIP, INDEX_TEXTO, INDEX_UNI,
+    INDEX_PLIP, INDEX_TEXTO, INDEX_UNI, QDRANT_PATH,
     normalizar as _sin_tildes,
 )
 from .llm import embed_query_con_reintento
@@ -30,17 +30,24 @@ class QdrantVectorStore:
     - Hybrid, vectorial, entity-based, and text-based search
     """
 
-    def __init__(self, url: str, api_key: str):
+    def __init__(self, url: Optional[str] = None, api_key: Optional[str] = None, path: Optional[str] = None):
         self.url = url
         self.api_key = api_key
-        self.client = QdrantClient(url=url, api_key=api_key, timeout=60)
+        self.path = path or QDRANT_PATH
+        if url:
+            self.client = QdrantClient(url=url, api_key=api_key or None, timeout=60)
+            self.location = url
+        else:
+            os.makedirs(self.path, exist_ok=True)
+            self.client = QdrantClient(path=self.path, timeout=60)
+            self.location = self.path
 
     # ── Connection ────────────────────────────────────────────────────────────
 
     async def connect(self):
         try:
             self.client.get_collections()
-            print(f"✅ Qdrant conectado: {self.url}")
+            print(f"✅ Qdrant conectado: {self.location}")
         except Exception as e:
             raise ConnectionError(f"No se pudo conectar a Qdrant: {e}")
 
@@ -725,4 +732,3 @@ class QdrantVectorStore:
             f"ImgTxt={len(res_img_texto)} | Keyword={len(res_keyword)} → {len(final)}"
         )
         return final[:15]
-

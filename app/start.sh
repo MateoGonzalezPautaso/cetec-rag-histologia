@@ -28,6 +28,35 @@ ok()   { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
 fail() { echo -e "${RED}✗${NC} $1"; }
 
+create_desktop_shortcut() {
+    DESKTOP_DIR=""
+    for candidate in "$HOME/Desktop" "$HOME/Escritorio"; do
+        if [[ -d "$candidate" ]]; then
+            DESKTOP_DIR="$candidate"
+            break
+        fi
+    done
+
+    if [[ -n "$DESKTOP_DIR" ]]; then
+        SHORTCUT="${DESKTOP_DIR}/RAG Histología.desktop"
+        ICON_PATH="${SCRIPT_DIR}/client/favicon-256.png"
+        cat > "$SHORTCUT" <<EOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=RAG Histología
+Comment=Asistente de histología médica
+Exec=bash "${SCRIPT_DIR}/launch.sh"
+Icon=${ICON_PATH}
+Terminal=true
+Categories=Education;Science;
+EOF
+        chmod +x "$SHORTCUT"
+        gio set "$SHORTCUT" metadata::trusted true 2>/dev/null || true
+        ok "Acceso directo creado en: ${SHORTCUT}"
+    fi
+}
+
 echo ""
 echo "🔬 RAG Histología — iniciando..."
 echo ""
@@ -38,6 +67,7 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 # ── Si ya está corriendo, solo abrir el browser ───────────────────────
 if curl -fsS "${URL}/api/status" >/dev/null 2>&1; then
     ok "El servidor ya está corriendo en ${URL}"
+    create_desktop_shortcut
     if $OPEN_BROWSER; then
         xdg-open "$URL" >/dev/null 2>&1 || open "$URL" >/dev/null 2>&1 || true
     fi
@@ -81,13 +111,13 @@ if [[ ! -f ".env" ]]; then
         echo "  Crear con: cp ${SCRIPT_DIR}/../.env.example ${SCRIPT_DIR}/.env"
         echo "  Luego completar las claves en ${SCRIPT_DIR}/.env"
     else
-        echo "  Crear ${SCRIPT_DIR}/.env con: GROQ_API_KEY, QDRANT_URL, QDRANT_KEY, HF_TOKEN"
+        echo "  Crear ${SCRIPT_DIR}/.env con: GROQ_API_KEY y HF_TOKEN"
     fi
     exit 1
 fi
 
 missing_keys=()
-for key in GROQ_API_KEY QDRANT_URL QDRANT_KEY HF_TOKEN; do
+for key in GROQ_API_KEY HF_TOKEN; do
     val=$(grep -E "^${key}=" .env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
     if [[ -z "$val" || "$val" == "tu-"* || "$val" == "tu_"* ]]; then
         missing_keys+=("$key")
@@ -100,12 +130,22 @@ if [[ ${#missing_keys[@]} -gt 0 ]]; then
     exit 1
 fi
 ok ".env con claves configuradas"
+ok "Qdrant local: ${SCRIPT_DIR}/qdrant_data"
 
 # ── Verificar carpeta pdf/ ────────────────────────────────────────────
-if [[ ! -d "pdf" ]] || [[ -z "$(ls -A pdf/*.pdf 2>/dev/null)" ]]; then
-    warn "No hay PDFs en pdf/ — el sistema iniciará pero sin contenido para consultar."
+PDF_SOURCE=""
+if [[ -d "pdf" ]] && compgen -G "pdf/*.pdf" >/dev/null; then
+    PDF_SOURCE="${SCRIPT_DIR}/pdf"
+elif [[ -d "${SCRIPT_DIR}/../data/pdf" ]] && compgen -G "${SCRIPT_DIR}/../data/pdf/*.pdf" >/dev/null; then
+    PDF_SOURCE="${SCRIPT_DIR}/../data/pdf"
+fi
+
+if [[ -z "$PDF_SOURCE" ]]; then
+    warn "No hay PDFs en app/pdf/ ni en data/pdf/ — el sistema iniciará pero sin contenido para consultar."
     warn "Agregar PDFs con: cp tu_manual.pdf ${SCRIPT_DIR}/pdf/"
     mkdir -p pdf
+else
+    ok "PDFs detectados en: ${PDF_SOURCE}"
 fi
 
 # ── Instalar dependencias Python ──────────────────────────────────────
@@ -158,30 +198,7 @@ if ! $READY; then
 fi
 
 # ── Crear acceso directo en el escritorio ────────────────────────────
-DESKTOP_DIR=""
-for candidate in "$HOME/Desktop" "$HOME/Escritorio"; do
-    if [[ -d "$candidate" ]]; then
-        DESKTOP_DIR="$candidate"
-        break
-    fi
-done
-
-if [[ -n "$DESKTOP_DIR" ]]; then
-    SHORTCUT="${DESKTOP_DIR}/RAG Histología.desktop"
-    cat > "$SHORTCUT" <<EOF
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=RAG Histología
-Comment=Asistente de histología médica
-Exec=bash "${SCRIPT_DIR}/launch.sh"
-Terminal=true
-Categories=Education;Science;
-EOF
-    chmod +x "$SHORTCUT"
-    gio set "$SHORTCUT" metadata::trusted true 2>/dev/null || true
-    ok "Acceso directo creado en: ${SHORTCUT}"
-fi
+create_desktop_shortcut
 
 # ── Abrir navegador ───────────────────────────────────────────────────
 if $OPEN_BROWSER; then

@@ -26,6 +26,7 @@ let lastStatusData = null;
 checkStatus();
 setInterval(checkStatus, 15000);
 document.addEventListener('paste', handlePasteImage);
+closeTemario();
 
 async function checkStatus() {
     try {
@@ -522,16 +523,22 @@ let temarioLoaded = false;
 async function toggleTemario() {
     const overlay = document.getElementById('temario-overlay');
     const panel = document.getElementById('temario-panel');
-    const isVisible = overlay.classList.contains('visible');
+    const isVisible = getComputedStyle(panel).display !== 'none';
 
     if (isVisible) {
-        overlay.classList.remove('visible');
-        panel.style.display = 'none';
+        closeTemario();
     } else {
         overlay.classList.add('visible');
         panel.style.display = 'flex';
         if (!temarioLoaded) await loadTemario();
     }
+}
+
+function closeTemario() {
+    const overlay = document.getElementById('temario-overlay');
+    const panel = document.getElementById('temario-panel');
+    if (overlay) overlay.classList.remove('visible');
+    if (panel) panel.style.display = 'none';
 }
 
 async function loadTemario() {

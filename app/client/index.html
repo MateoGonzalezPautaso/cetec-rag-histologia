@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
-    <link rel="stylesheet" href="/style.css?v=2">
+    <link rel="stylesheet" href="/style.css?v=4">
 </head>
 
 <body>
@@ -70,10 +70,10 @@
 
     <!-- Temario Overlay -->
     <div class="temario-overlay" id="temario-overlay" onclick="toggleTemario()"></div>
-    <div class="temario-panel" id="temario-panel">
+    <div class="temario-panel" id="temario-panel" style="display: none;">
         <div class="temario-header">
             <h3>📚 Temario de Histología</h3>
-            <button class="temario-close" onclick="toggleTemario()">×</button>
+            <button class="temario-close" onclick="closeTemario()">×</button>
         </div>
         <div class="temario-list" id="temario-list">
             <p style="color: var(--text-muted); font-size: 0.85rem;">Cargando...</p>
@@ -110,7 +110,7 @@
         </div>
     </div>
 
-    <script src="/app.js?v=2"></script>
+    <script src="/app.js?v=4"></script>
 </body>
 
 </html>
