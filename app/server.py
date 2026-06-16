@@ -92,11 +92,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Orígenes permitidos. La app se sirve same-origin (API_BASE=''), así que por
+# defecto solo habilitamos orígenes locales para CORS; se puede ampliar con la
+# env ALLOWED_ORIGINS (lista separada por comas, o "*" para abrir todo).
+_origins_env = os.getenv("ALLOWED_ORIGINS", "").strip()
+if _origins_env == "*":
+    _allow_origins, _allow_origin_regex = ["*"], None
+elif _origins_env:
+    _allow_origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
+    _allow_origin_regex = None
+else:
+    _allow_origins = []
+    _allow_origin_regex = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allow_origins,
+    allow_origin_regex=_allow_origin_regex,
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
