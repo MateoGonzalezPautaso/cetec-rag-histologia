@@ -4,7 +4,6 @@ Global constants, paths, and utility functions.
 
 import os
 import unicodedata
-from typing import Optional
 
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
@@ -18,7 +17,30 @@ DIM_IMG_PLIP = 512
 # ── Directories ───────────────────────────────────────────────────────────────
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIRECTORIO_IMAGENES = os.path.join(_BASE, "imagenes_extraidas")
-DIRECTORIO_PDFS = os.path.join(_BASE, "pdf")
+
+_PDFS_APP = os.path.join(_BASE, "pdf")
+_PDFS_REPO = os.path.abspath(os.path.join(_BASE, os.pardir, "data", "pdf"))
+
+
+def _tiene_pdfs(path: str) -> bool:
+    try:
+        return os.path.isdir(path) and any(
+            nombre.lower().endswith(".pdf") for nombre in os.listdir(path)
+        )
+    except Exception:
+        return False
+
+
+DIRECTORIO_PDFS = _PDFS_APP if _tiene_pdfs(_PDFS_APP) or not _tiene_pdfs(_PDFS_REPO) else _PDFS_REPO
+
+_QDRANT_PATH_ENV = os.getenv("QDRANT_PATH")
+if _QDRANT_PATH_ENV:
+    QDRANT_PATH = (
+        _QDRANT_PATH_ENV if os.path.isabs(_QDRANT_PATH_ENV)
+        else os.path.abspath(os.path.join(_BASE, _QDRANT_PATH_ENV))
+    )
+else:
+    QDRANT_PATH = os.path.join(_BASE, "qdrant_data")
 
 # ── Qdrant collections ────────────────────────────────────────────────────────
 COLLECTION_CHUNKS = "histo_chunks"

@@ -25,7 +25,7 @@ from langgraph.graph import END, START, StateGraph
 from .classifier import ClasificadorSemantico
 from .config import (
     COLLECTION_CHUNKS, COLLECTION_IMAGENES, DIRECTORIO_IMAGENES, DIRECTORIO_PDFS,
-    FEATURES_DISCRIMINATORIAS, SIMILARITY_THRESHOLD,
+    FEATURES_DISCRIMINATORIAS, QDRANT_PATH, SIMILARITY_THRESHOLD,
     _safe, normalizar,
 )
 from .embeddings import PlipWrapper, UniWrapper
@@ -95,6 +95,7 @@ class AsistenteHistologiaQdrant:
         self.qdrant_store = QdrantVectorStore(
             url=userdata.get("QDRANT_URL") or os.getenv("QDRANT_URL"),
             api_key=userdata.get("QDRANT_KEY") or os.getenv("QDRANT_KEY"),
+            path=QDRANT_PATH,
         )
         await self.qdrant_store.connect()
         await self.qdrant_store.crear_esquema()

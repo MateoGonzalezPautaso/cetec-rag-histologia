@@ -15,7 +15,7 @@ from qdrant_client import models
 load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).parent))
-from src.config import COLLECTION_CHUNKS, COLLECTION_IMAGENES, normalizar
+from src.config import COLLECTION_CHUNKS, COLLECTION_IMAGENES, QDRANT_PATH, normalizar
 
 
 def extraer_metadatos(texto: str) -> dict:
@@ -108,10 +108,15 @@ def actualizar_coleccion(client: QdrantClient, collection: str) -> int:
 def main() -> None:
     url = os.getenv("QDRANT_URL")
     api_key = os.getenv("QDRANT_KEY")
-    if not url or not api_key:
-        raise RuntimeError("Faltan QDRANT_URL o QDRANT_KEY en el entorno")
+    qdrant_path = QDRANT_PATH
 
-    client = QdrantClient(url=url, api_key=api_key, timeout=60)
+    if url:
+        client = QdrantClient(url=url, api_key=api_key or None, timeout=60)
+        print(f"Usando Qdrant remoto: {url}")
+    else:
+        os.makedirs(qdrant_path, exist_ok=True)
+        client = QdrantClient(path=qdrant_path, timeout=60)
+        print(f"Usando Qdrant local: {qdrant_path}")
     for collection in (COLLECTION_CHUNKS, COLLECTION_IMAGENES):
         for field in ("tejidos", "estructuras", "tinciones", "dominios", "organos", "celulas", "temas"):
             try:
