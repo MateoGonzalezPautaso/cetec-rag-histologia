@@ -50,8 +50,12 @@ class PlipWrapper:
             print(f"❌ Error cargando PLIP: {e}")
 
     def embed_image(self, image_path: str, preprocess: bool = True) -> np.ndarray:
+        # No devolvemos un vector de ceros: bajo distancia COSINE es degenerado
+        # (norma 0) y, si se indexa, contamina la colección con puntos que nunca
+        # matchean y sin error visible. Preferimos fallar para que el llamador
+        # lo maneje (saltar el ítem al indexar, fallback a texto en consulta).
         if not self.model:
-            return np.zeros(DIM_IMG_PLIP)
+            raise RuntimeError("PLIP no está cargado; no se puede generar el embedding de imagen.")
         try:
             image = (
                 preprocess_image_for_embedding(image_path)
@@ -65,8 +69,7 @@ class PlipWrapper:
                 image_features = self.model.visual_projection(vision_out.pooler_output)
             return image_features.cpu().numpy().flatten()
         except Exception as e:
-            print(f"⚠️ Error embedding PLIP: {e}")
-            return np.zeros(DIM_IMG_PLIP)
+            raise RuntimeError(f"Error generando embedding PLIP: {e}") from e
 
 
 # ── UNI (pathology ViT-L) ─────────────────────────────────────────────────────
@@ -96,8 +99,9 @@ class UniWrapper:
             print(f"❌ Error cargando UNI: {e}")
 
     def embed_image(self, image_path: str, preprocess: bool = True) -> np.ndarray:
+        # Ver nota en PlipWrapper.embed_image: fallamos en vez de devolver ceros.
         if not self.model:
-            return np.zeros(DIM_IMG_UNI)
+            raise RuntimeError("UNI no está cargado; no se puede generar el embedding de imagen.")
         try:
             image = (
                 preprocess_image_for_embedding(image_path)
@@ -109,8 +113,7 @@ class UniWrapper:
                 emb = self.model(tensor)
             return emb.cpu().numpy().flatten()
         except Exception as e:
-            print(f"⚠️ Error embedding UNI: {e}")
-            return np.zeros(DIM_IMG_UNI)
+            raise RuntimeError(f"Error generando embedding UNI: {e}") from e
 
 
 # ── Image extraction config ───────────────────────────────────────────────────
