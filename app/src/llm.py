@@ -74,6 +74,10 @@ async def invoke_con_reintento(llm, messages, max_retries=None):
             else:
                 raise
 
+    # Si max_retries fuese 0 (p. ej. LLM_MAX_RETRIES=0) el bucle no se ejecuta:
+    # nunca devolvemos None silenciosamente al llamador.
+    raise RuntimeError(_quota_message())
+
 
 def invoke_con_reintento_sync(llm, messages, max_retries=None):
     if _quota_blocked():
@@ -100,6 +104,8 @@ def invoke_con_reintento_sync(llm, messages, max_retries=None):
             else:
                 raise
 
+    raise RuntimeError(_quota_message())
+
 
 def embed_query_con_reintento(embeddings, texto: str, max_retries: int = 5):
     for attempt in range(max_retries):
@@ -117,6 +123,8 @@ def embed_query_con_reintento(embeddings, texto: str, max_retries: int = 5):
             else:
                 raise
 
+    raise RuntimeError("No se pudo generar el embedding tras varios reintentos.")
+
 
 def embed_documents_con_reintento(embeddings, textos: list, max_retries: int = 5):
     for attempt in range(max_retries):
@@ -133,6 +141,8 @@ def embed_documents_con_reintento(embeddings, textos: list, max_retries: int = 5
                     raise
             else:
                 raise
+
+    raise RuntimeError("No se pudieron generar los embeddings tras varios reintentos.")
 
 
 # ── LangSmith ─────────────────────────────────────────────────────────────────
