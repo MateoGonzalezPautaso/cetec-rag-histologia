@@ -53,7 +53,7 @@
 
 ## Contexto
 
-Proyecto desarrollado en el **CETEC** de la **Facultad de Ingeniería de la Universidad de Buenos Aires (FIUBA)**.
+Proyecto desarrollado en el **CETEC UBATIC** (Facultad de Ingeniería, Universidad de Buenos Aires).
 
 | | |
 |---|---|
