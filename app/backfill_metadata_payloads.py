@@ -48,8 +48,11 @@ def actualizar_coleccion(client: QdrantClient, collection: str) -> int:
                 for campo in ("texto", "caption", "texto_pagina", "ocr_text", "etiqueta")
             )
             metadatos = extraer_metadatos(texto)
+            # Escribimos siempre los 7 campos (aunque vengan vacíos) para que un
+            # punto cuyo texto ya no matchea ninguna regla pierda su metadata
+            # vieja, en lugar de conservar valores obsoletos.
+            client.set_payload(collection_name=collection, payload=metadatos, points=[punto.id])
             if any(metadatos.values()):
-                client.set_payload(collection_name=collection, payload=metadatos, points=[punto.id])
                 actualizados += 1
 
         if offset is None:
@@ -69,19 +72,24 @@ def main() -> None:
         os.makedirs(qdrant_path, exist_ok=True)
         client = QdrantClient(path=qdrant_path, timeout=60)
         print(f"Usando Qdrant local: {qdrant_path}")
-    for collection in (COLLECTION_CHUNKS, COLLECTION_IMAGENES):
-        for field in ("tejidos", "estructuras", "tinciones", "dominios", "organos", "celulas", "temas"):
-            try:
-                client.create_payload_index(
-                    collection_name=collection,
-                    field_name=field,
-                    field_schema=models.PayloadSchemaType.KEYWORD,
-                )
-            except Exception:
-                pass
-    chunks = actualizar_coleccion(client, COLLECTION_CHUNKS)
-    imagenes = actualizar_coleccion(client, COLLECTION_IMAGENES)
-    print(f"Payloads actualizados: chunks={chunks}, imagenes={imagenes}")
+    try:
+        for collection in (COLLECTION_CHUNKS, COLLECTION_IMAGENES):
+            for field in ("tejidos", "estructuras", "tinciones", "dominios", "organos", "celulas", "temas"):
+                try:
+                    client.create_payload_index(
+                        collection_name=collection,
+                        field_name=field,
+                        field_schema=models.PayloadSchemaType.KEYWORD,
+                    )
+                except Exception:
+                    pass
+        chunks = actualizar_coleccion(client, COLLECTION_CHUNKS)
+        imagenes = actualizar_coleccion(client, COLLECTION_IMAGENES)
+        print(f"Payloads actualizados: chunks={chunks}, imagenes={imagenes}")
+    finally:
+        # En modo local Qdrant toma un lock exclusivo sobre el directorio;
+        # cerramos siempre para no bloquear ejecuciones posteriores.
+        client.close()
 
 
 if __name__ == "__main__":
