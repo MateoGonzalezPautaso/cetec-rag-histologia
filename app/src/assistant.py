@@ -472,7 +472,9 @@ class AsistenteHistologiaQdrant:
         if state.get("mostrar_imagenes", False):
             print("   🖼️ Búsqueda semántica de imágenes...")
             imgs = await self.qdrant_store.busqueda_imagenes_semantica(
-                texto_embedding=state.get("texto_embedding", []),
+                # La clave siempre existe (se inicializa en None), así que el
+                # default [] de .get nunca aplicaba; lo forzamos a [] si es None.
+                texto_embedding=state.get("texto_embedding") or [],
                 entidades=entidades,
                 embeddings_model=self.embeddings,
                 top_k=3,
