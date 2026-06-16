@@ -50,11 +50,13 @@ def evaluar(base_url: str, eval_set: list[dict], timeout: int) -> list[dict]:
         try:
             data = _post_json(
                 f"{base_url.rstrip('/')}/api/chat",
-                {"query": caso["query"]},
+                {"query": caso.get("query", "")},
                 timeout=timeout,
             )
             respuesta = data.get("respuesta", "")
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        except Exception as exc:
+            # Cualquier fallo en un caso (red, JSON inválido, clave faltante, etc.)
+            # se registra como error de ese caso, sin abortar la corrida completa.
             error = str(exc)
 
         respuesta_norm = _norm(respuesta)
