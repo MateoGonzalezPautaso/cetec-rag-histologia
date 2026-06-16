@@ -15,64 +15,16 @@ from qdrant_client import models
 load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).parent))
-from src.config import COLLECTION_CHUNKS, COLLECTION_IMAGENES, QDRANT_PATH, normalizar
+from src.config import (
+    COLLECTION_CHUNKS, COLLECTION_IMAGENES, QDRANT_PATH,
+    extraer_entidades_por_reglas,
+)
 
 
 def extraer_metadatos(texto: str) -> dict:
-    texto_norm = normalizar(texto)
-    reglas = {
-        "tejidos": {
-            "musculo liso": ["musculo liso", "musculares lisas", "musculares lisos"],
-            "tejido conectivo": ["tejido conectivo", "conectivo colageno", "fibras colagenas"],
-            "epitelio seminifero": ["epitelio seminifero"],
-            "endotelio": ["endotelio", "endoteliales"],
-        },
-        "estructuras": {
-            "tunica intima": ["tunica intima"],
-            "tunica media": ["tunica media"],
-            "tunica adventicia": ["tunica adventicia", "adventicia", "tunica externa"],
-            "lamina elastica interna": ["lamina elastica interna"],
-            "lamina elastica externa": ["lamina elastica externa"],
-            "tubulo seminifero": ["tubulo seminifero", "tubulos seminiferos"],
-            "intersticio testicular": ["intersticio testicular", "intersticio"],
-            "membrana basal": ["membrana basal"],
-        },
-        "tinciones": {
-            "hematoxilina-eosina": ["hematoxilina", "eosina", "h&e", "he"],
-        },
-        "dominios": {
-            "vasos sanguineos": ["arteria", "arterial", "arteriola", "vena", "venula", "vaso sanguineo", "vascular", "tunica intima", "tunica media"],
-            "testiculo": ["testiculo", "testicular", "seminifero", "seminiferos", "sertoli", "leydig", "espermatogonia", "espermatide", "peritubular", "mioide"],
-        },
-        "organos": {
-            "arteria muscular": ["arteria muscular"],
-            "testiculo": ["testiculo", "testicular"],
-            "tubulo seminifero": ["tubulo seminifero", "tubulos seminiferos"],
-        },
-        "celulas": {
-            "celula de sertoli": ["sertoli"],
-            "celula de leydig": ["leydig"],
-            "espermatogonia": ["espermatogonia"],
-            "espermatide": ["espermatide", "espermátide"],
-            "celula peritubular": ["peritubular", "mioide"],
-            "celula endotelial": ["endotelial", "endoteliales"],
-        },
-        "temas": {
-            "arteria muscular": ["arteria muscular"],
-            "capas arteriales": ["tunica intima", "tunica media", "tunica adventicia", "tunica externa"],
-            "laminas elasticas": ["lamina elastica interna", "lamina elastica externa"],
-            "espermatogenesis": ["espermatogenesis", "espermatogonia", "espermatide"],
-            "epitelio seminifero": ["epitelio seminifero", "tubulo seminifero"],
-            "intersticio testicular": ["intersticio", "leydig"],
-        },
-    }
-
-    metadatos = {k: [] for k in reglas}
-    for categoria, valores in reglas.items():
-        for etiqueta, patrones in valores.items():
-            if any(normalizar(patron) in texto_norm for patron in patrones):
-                metadatos[categoria].append(etiqueta)
-    return metadatos
+    # Reglas compartidas con el pipeline en vivo (config.REGLAS_ENTIDADES) para
+    # que el backfill y la indexación produzcan exactamente la misma metadata.
+    return extraer_entidades_por_reglas(texto)
 
 
 def actualizar_coleccion(client: QdrantClient, collection: str) -> int:
