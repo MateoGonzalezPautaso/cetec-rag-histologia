@@ -143,8 +143,9 @@ cd app && ./start.sh
 > dependencias dependen de la máquina — en particular el build de **PyTorch (CPU vs. CUDA)** y el índice
 > de descarga (`[tool.uv.sources]`). Por eso se versiona una **plantilla** (`app/pyproject.example.toml`)
 > que hay que copiar antes de instalar dependencias; si no, `uv sync` (o `start.sh`) falla con
-> `No pyproject.toml found`. La plantilla viene por defecto con **CUDA 11.8** (coincide con el `uv.lock`);
-> si no tenés GPU NVIDIA, seguí el comentario del archivo para cambiar al índice **CPU**.
+> `No pyproject.toml found`. La plantilla viene por defecto en **CPU** (funciona en cualquier máquina); si
+> tenés GPU NVIDIA y querés acelerar, seguí el comentario del archivo para activar **CUDA 11.8**. El `uv.lock`
+> tampoco se versiona (se deriva del `pyproject.toml`): cada máquina genera el suyo al correr `uv sync`.
 
 El script instala dependencias, crea/usa una base Qdrant local en `app/qdrant_data/`, inicia el servidor y abre el navegador automáticamente en `http://localhost:10007`.
 

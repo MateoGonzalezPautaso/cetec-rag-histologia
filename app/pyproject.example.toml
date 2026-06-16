@@ -59,27 +59,27 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 # ── PyTorch: elegí UNA opción según tu hardware ──────────────────────────────
-# Opción A (por defecto): GPU NVIDIA con CUDA 11.8. Coincide con el uv.lock
-# versionado. En máquinas sin GPU igual funciona (corre en CPU), pero descarga
-# las ruedas con CUDA (~2 GB). Para CPU puro, usá la Opción B.
+# Opción A (por defecto): solo CPU. Liviano y funciona en cualquier máquina
+# (no requiere GPU). Si tenés GPU NVIDIA y querés acelerar, usá la Opción B.
 [[tool.uv.index]]
-name = "pytorch-cu118"
-url = "https://download.pytorch.org/whl/cu118"
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [tool.uv.sources]
-torch = { index = "pytorch-cu118" }
-torchvision = { index = "pytorch-cu118" }
-torchaudio = { index = "pytorch-cu118" }
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
+torchaudio = { index = "pytorch-cpu" }
 
-# Opción B: solo CPU (más liviano, sin GPU). Para usarla: comentá el bloque de
-# la Opción A (las dos secciones de arriba) y descomentá las de abajo.
+# Opción B: GPU NVIDIA con CUDA 11.8 (descarga ~2 GB de ruedas CUDA). Para
+# usarla: comentá el bloque de la Opción A (las dos secciones de arriba) y
+# descomentá las de abajo.
 # [[tool.uv.index]]
-# name = "pytorch-cpu"
-# url = "https://download.pytorch.org/whl/cpu"
+# name = "pytorch-cu118"
+# url = "https://download.pytorch.org/whl/cu118"
 # explicit = true
 #
 # [tool.uv.sources]
-# torch = { index = "pytorch-cpu" }
-# torchvision = { index = "pytorch-cpu" }
-# torchaudio = { index = "pytorch-cpu" }
+# torch = { index = "pytorch-cu118" }
+# torchvision = { index = "pytorch-cu118" }
+# torchaudio = { index = "pytorch-cu118" }

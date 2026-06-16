@@ -16,6 +16,9 @@ dist/
 .eggs/
 app/pyproject.toml
 .app/pyproject.toml
+# El lock se deriva de pyproject.toml (deps específicas de la máquina: CPU/CUDA),
+# así que también es local. Cada máquina regenera el suyo con `uv lock`/`uv sync`.
+app/uv.lock
 
 # ─── Entornos virtuales ──────────────────────────────────────────────
 .venv/
