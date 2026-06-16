@@ -22,7 +22,8 @@ class SemanticMemory:
     Summaries are persisted in a local Qdrant collection every 5 turns.
     """
 
-    def __init__(self, llm, embeddings=None, uni=None, plip=None, max_entries: int = 10):
+    def __init__(self, llm, embeddings=None, uni=None, plip=None, max_entries: int = 10,
+                 qdrant_client: Optional[QdrantClient] = None):
         self.llm = llm
         self.embeddings = embeddings
         self.uni = uni
@@ -39,8 +40,14 @@ class SemanticMemory:
         self.turno_actual: int = 0
 
         self._collection = "memoria_histo"
-        _qdrant_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qdrant_memoria")
-        self._qdrant = QdrantClient(path=_qdrant_dir)
+        # En modo local Qdrant toma un lock exclusivo sobre el directorio, así
+        # que cuando hay varias sesiones se comparte un único cliente. Si no se
+        # provee uno (scripts sueltos), creamos el propio.
+        if qdrant_client is not None:
+            self._qdrant = qdrant_client
+        else:
+            _qdrant_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qdrant_memoria")
+            self._qdrant = QdrantClient(path=_qdrant_dir)
         self._ensure_collection()
 
     def _ensure_collection(self):
