@@ -118,10 +118,24 @@ fi
 
 missing_keys=()
 for key in GROQ_API_KEY HF_TOKEN; do
-    val=$(grep -E "^${key}=" .env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
-    if [[ -z "$val" || "$val" == "tu-"* || "$val" == "tu_"* ]]; then
+    # Tolera espacios alrededor del '=' (KEY = valor). Tomamos la última línea
+    # que matchee por si la clave aparece más de una vez.
+    line=$(grep -E "^[[:space:]]*${key}[[:space:]]*=" .env 2>/dev/null | tail -n1)
+    val=${line#*=}
+    # Recorta espacios al inicio/fin.
+    val="$(printf '%s' "$val" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    # Quita comillas solo si envuelven TODO el valor (no las internas).
+    if [[ "$val" =~ ^\"(.*)\"$ ]] || [[ "$val" =~ ^\'(.*)\'$ ]]; then
+        val="${BASH_REMATCH[1]}"
+    fi
+    # Detecta valores de ejemplo comunes (es/en), sin distinguir mayúsculas.
+    shopt -s nocasematch
+    if [[ -z "$val" || "$val" == tu-* || "$val" == tu_* || "$val" == your-* \
+          || "$val" == your_* || "$val" == xxx* || "$val" == changeme* \
+          || "$val" == "<"* ]]; then
         missing_keys+=("$key")
     fi
+    shopt -u nocasematch
 done
 
 if [[ ${#missing_keys[@]} -gt 0 ]]; then

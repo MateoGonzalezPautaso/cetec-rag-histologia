@@ -55,14 +55,22 @@ else
     echo "   (cerrá esta ventana con Ctrl+C para detenerlo)"
     echo ""
 
-    # Abrir el navegador en cuanto el servidor responda
+    # Abrir el navegador en cuanto el servidor responda. El loop está acotado
+    # (no es infinito) por si uvicorn no llega a arrancar, y se reapea al salir.
     (
-        while ! curl -fsS "${URL}/api/status" > /dev/null 2>&1; do
+        for _ in $(seq 1 60); do
+            if curl -fsS "${URL}/api/status" > /dev/null 2>&1; then
+                echo "✅ Servidor listo. Abriendo navegador..."
+                open_browser
+                exit 0
+            fi
             sleep 1
         done
-        echo "✅ Servidor listo. Abriendo navegador..."
-        open_browser
+        echo "⚠️ El servidor no respondió a tiempo; abrí manualmente: ${URL}"
     ) &
+    OPENER_PID=$!
+    # Si esta ventana muere o uvicorn termina, matamos el subshell del navegador.
+    trap 'kill "${OPENER_PID}" 2>/dev/null || true' EXIT
 
     cd "${APP_DIR}"
     uv run uvicorn server:app --host 0.0.0.0 --port "${PORT}"
