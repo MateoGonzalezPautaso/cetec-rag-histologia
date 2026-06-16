@@ -125,8 +125,8 @@ flowchart TD
 git clone https://github.com/MateoGonzalezPautaso/cetec-rag-histologia.git
 cd cetec-rag-histologia
 
-# 1. Restaurar pyproject.toml (NO está versionado — ver nota debajo)
-git show "$(git log --diff-filter=D -1 --format=%H -- app/pyproject.toml)^:app/pyproject.toml" > app/pyproject.toml
+# 1. Crear pyproject.toml a partir de la plantilla (NO está versionado — ver nota debajo)
+cp app/pyproject.example.toml app/pyproject.toml
 
 # 2. Copiar y completar el archivo de configuración
 cp .env.example app/.env
@@ -141,10 +141,10 @@ cd app && ./start.sh
 
 > ⚠️ **Sobre `app/pyproject.toml`:** el archivo **no está versionado** (está en `.gitignore`) porque las
 > dependencias dependen de la máquina — en particular el build de **PyTorch (CPU vs. CUDA)** y el índice
-> de descarga (`[tool.uv.sources]`). Por eso, en un clon nuevo hay que **restaurarlo antes** de instalar
-> dependencias; si no, `uv sync` (o `start.sh`) falla con `No pyproject.toml found`. El comando del paso 1
-> recupera la última versión guardada en el historial de git; luego ajustá el índice de torch según tu
-> hardware (`pytorch-cu118` para GPU NVIDIA con CUDA 11.8, o el índice `cpu` si no tenés GPU).
+> de descarga (`[tool.uv.sources]`). Por eso se versiona una **plantilla** (`app/pyproject.example.toml`)
+> que hay que copiar antes de instalar dependencias; si no, `uv sync` (o `start.sh`) falla con
+> `No pyproject.toml found`. La plantilla viene por defecto con **CUDA 11.8** (coincide con el `uv.lock`);
+> si no tenés GPU NVIDIA, seguí el comentario del archivo para cambiar al índice **CPU**.
 
 El script instala dependencias, crea/usa una base Qdrant local en `app/qdrant_data/`, inicia el servidor y abre el navegador automáticamente en `http://localhost:10007`.
 
@@ -199,8 +199,9 @@ El indexado se saltea solo si las colecciones de Qdrant ya están pobladas **y**
 
 ## Ejecutar manualmente
 
-> **Nota:** si `app/pyproject.toml` no existe (no se versiona, ver [Inicio rápido](#inicio-rápido)), restauralo
-> antes de instalar dependencias, o `uv sync` fallará con `No pyproject.toml found`.
+> **Nota:** si `app/pyproject.toml` no existe (no se versiona, ver [Inicio rápido](#inicio-rápido)), crealo con
+> `cp app/pyproject.example.toml app/pyproject.toml` antes de instalar dependencias, o `uv sync` fallará con
+> `No pyproject.toml found`.
 
 ```bash
 cd app
@@ -247,7 +248,8 @@ Cada consulta pasa por un grafo de nodos LangGraph (ver [Arquitectura](#arquitec
 .
 ├── app/                       # Aplicación (backend + frontend)
 │   ├── server.py              # FastAPI: endpoints REST + sirviendo el frontend
-│   ├── pyproject.toml         # Dependencias Python (gestor: uv)
+│   ├── pyproject.example.toml # Plantilla de dependencias (versionada; copiar a pyproject.toml)
+│   ├── pyproject.toml         # Dependencias Python reales (gestor: uv; NO versionado)
 │   ├── start.sh               # Script de inicio con checks automáticos + acceso directo
 │   ├── launch.sh              # Lanzador del acceso directo del escritorio
 │   ├── .env                   # Claves privadas (no commitear)
