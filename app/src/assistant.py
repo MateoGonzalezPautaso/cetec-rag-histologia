@@ -864,9 +864,14 @@ class AsistenteHistologiaQdrant:
                 for i, img in enumerate(imgs, 1)
             ]
             instruccion_imagenes = (
-                "\nIMÁGENES ENCONTRADAS EN LA BASE DE DATOS:\n"
+                "\nIMÁGENES DE REFERENCIA QUE SE MUESTRAN AL USUARIO (debajo de tu respuesta):\n"
                 + "\n".join(descripciones)
-                + "\n\nINSTRUCCIÓN: Describí brevemente cada imagen usando el caption del manual.\n"
+                + "\n\nINSTRUCCIÓN SOBRE LAS IMÁGENES:\n"
+                "- Estas imágenes del manual se muestran automáticamente debajo de tu respuesta.\n"
+                "- NO afirmes que 'no hay imágenes' ni cuestiones su existencia o disponibilidad.\n"
+                "- Enfocate en explicar el tema consultado; podés referirte a las imágenes con "
+                "naturalidad (p. ej. 'en las imágenes de referencia se observa...') y describirlas "
+                "brevemente con su caption del manual.\n"
             )
 
         if es_solo_texto:
