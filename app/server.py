@@ -35,6 +35,13 @@ class ChatRequest(BaseModel):
     query: str
     image_base64: Optional[str] = None
     image_filename: Optional[str] = None
+    # Identificador de sesión del navegador: aísla conversación / imagen activa
+    # por usuario. Si no llega, se usa una sesión por defecto (compatibilidad).
+    session_id: Optional[str] = None
+
+
+class LimpiarRequest(BaseModel):
+    session_id: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -166,6 +173,60 @@ def _friendly_error_message(error: Exception) -> str:
     )
 
 
+def _status_for_error(error: Exception) -> int:
+    """503 solo para cuota/servicio ocupado; el resto es 500 (bug real).
+
+    Antes todo se devolvía como 503 'ocupado/sin cuota', enmascarando errores
+    de programación y haciendo creer a los operadores que era un problema de
+    cuota inexistente.
+    """
+    raw = str(error).lower()
+    transitorios = [
+        "rate limit", "quota", "429", "resource_exhausted", "sin cuota",
+        "503", "temporarily", "ocupado", "connection", "timeout",
+    ]
+    return 503 if any(token in raw for token in transitorios) else 500
+
+
+# Límite de tamaño y extensiones permitidas para imágenes subidas por el chat.
+MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_MB", "8")) * 1024 * 1024
+_EXT_IMAGEN_OK = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
+
+
+def _guardar_imagen_subida(image_base64: str, image_filename: Optional[str],
+                           chat_img_dir: Path) -> str:
+    """Decodifica y guarda la imagen subida, validando tamaño y extensión.
+
+    - La extensión se restringe a una lista blanca (no se confía en el nombre
+      provisto por el cliente, que podría pedir .py/.html).
+    - Se rechazan payloads mayores a MAX_IMAGE_BYTES para evitar DoS de memoria.
+    """
+    try:
+        raw = base64.b64decode(image_base64, validate=True)
+    except Exception as exc:
+        raise ValueError(f"Imagen inválida: no es base64 válido ({exc}).") from exc
+
+    if not raw:
+        raise ValueError("Imagen vacía.")
+    if len(raw) > MAX_IMAGE_BYTES:
+        raise ValueError(
+            f"La imagen supera el límite de {MAX_IMAGE_BYTES // (1024 * 1024)} MB."
+        )
+
+    ext = ".png"
+    if image_filename:
+        _, cand = os.path.splitext(image_filename)
+        if cand.lower() in _EXT_IMAGEN_OK:
+            ext = cand.lower()
+
+    chat_img_dir.mkdir(exist_ok=True)
+    nombre_archivo = f"upload_{uuid.uuid4().hex[:8]}{ext}"
+    imagen_path = str(chat_img_dir / nombre_archivo)
+    with open(imagen_path, "wb") as f:
+        f.write(raw)
+    return imagen_path
+
+
 # ── Rutas de archivos del frontend ───────────────────────────────────
 @app.get("/")
 async def root():
@@ -229,9 +290,10 @@ async def get_status():
     return {
         "ready": True,
         "n_temas": len(asistente.extractor_temario.temas) if asistente.extractor_temario else 0,
-        "imagen_activa": os.path.basename(asistente.memoria.get_imagen_activa())
-            if asistente.memoria and asistente.memoria.get_imagen_activa() else None,
-        "turno": asistente.memoria.turno_actual if asistente.memoria else 0,
+        # La imagen activa y el turno son por sesión; el endpoint de estado es
+        # global, así que no los expone aquí (el /api/chat ya devuelve imagen_activa).
+        "imagen_activa": None,
+        "turno": 0,
         "device": asistente.device,
         "diagnostico": {
             "sistema": "Sistema listo",
@@ -255,45 +317,35 @@ async def get_temario():
 async def post_chat(req: ChatRequest):
     _check_ready()
 
+    user_id = req.session_id or "default_user"
+    memoria = asistente._get_memoria(user_id)
+
     imagen_path = None
     try:
-        # Si hay imagen, guardarla en un directorio persistente
+        # Si hay imagen, validarla y guardarla en un directorio persistente.
         if req.image_base64:
             chat_img_dir = Path(__file__).parent / "imagenes_chat"
-            chat_img_dir.mkdir(exist_ok=True)
-            
-            ext = ".png"
-            if req.image_filename:
-                _, ext = os.path.splitext(req.image_filename)
-                if not ext:
-                    ext = ".png"
-            
-            nombre_archivo = f"upload_{uuid.uuid4().hex[:8]}{ext}"
-            imagen_path = str(chat_img_dir / nombre_archivo)
-            
-            with open(imagen_path, "wb") as f:
-                f.write(base64.b64decode(req.image_base64))
-
+            imagen_path = _guardar_imagen_subida(
+                req.image_base64, req.image_filename, chat_img_dir,
+            )
             print(f"📷 Imagen guardada para chat: {imagen_path}")
+            _prune_chat_images(chat_img_dir, keep=20, protect=memoria.get_imagen_activa())
 
-            activa = asistente.memoria.get_imagen_activa() if asistente.memoria else None
-            _prune_chat_images(chat_img_dir, keep=20, protect=activa)
-
-        # Ejecutar consulta RAG
-        respuesta = await asistente.consultar(
+        # Ejecutar consulta RAG. consultar() devuelve el resultado completo, así
+        # evitamos leer estado compartido que otra request concurrente podría pisar.
+        resultado = await asistente.consultar(
             consulta_texto=req.query,
             imagen_path=imagen_path,
+            user_id=user_id,
         )
 
-        # Leer resultado directo del asistente (más confiable que el archivo JSON)
-        resultado_directo = getattr(asistente, '_ultimo_resultado', {})
-        estructura = resultado_directo.get("estructura_identificada")
+        estructura = resultado.get("estructura_identificada")
 
         # Imágenes de la BD para mostrar al usuario
-        imagenes_para_mostrar = resultado_directo.get("imagenes_para_mostrar", [])
+        imagenes_para_mostrar = resultado.get("imagenes_para_mostrar", [])
         imagenes_response = []
-        mostrar_imgs = resultado_directo.get("mostrar_imagenes", False)
-        
+        mostrar_imgs = resultado.get("mostrar_imagenes", False)
+
         if mostrar_imgs and imagenes_para_mostrar:
             for img_info in imagenes_para_mostrar:
                 nombre = img_info.get("nombre_archivo", "")
@@ -307,37 +359,31 @@ async def post_chat(req: ChatRequest):
                     })
             print(f"🖼️ {len(imagenes_response)} imágenes para mostrar al usuario")
 
-        trayectoria = resultado_directo.get("trayectoria", [])
-
-        img_activa = None
-        if asistente.memoria and asistente.memoria.get_imagen_activa():
-            img_activa = os.path.basename(asistente.memoria.get_imagen_activa())
-
         return ChatResponse(
-            respuesta=respuesta,
+            respuesta=resultado.get("respuesta", ""),
             estructura_identificada=estructura,
             imagenes_recuperadas=imagenes_response,
             imagenes_base64=[],
-            trayectoria=trayectoria,
-            imagen_activa=img_activa,
+            trayectoria=resultado.get("trayectoria", []),
+            imagen_activa=resultado.get("imagen_activa"),
             mostrar_imagenes=mostrar_imgs and len(imagenes_response) > 0,
         )
 
+    except ValueError as e:
+        # Entrada inválida (imagen corrupta / demasiado grande / etc.).
+        raise HTTPException(400, detail=str(e))
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(503, detail=_friendly_error_message(e))
-    finally:
-        pass
-
+        raise HTTPException(_status_for_error(e), detail=_friendly_error_message(e))
 
 
 # ── API: Limpiar imagen ──────────────────────────────────────────────
 @app.post("/api/imagen/limpiar")
-async def limpiar_imagen():
+async def limpiar_imagen(req: Optional[LimpiarRequest] = None):
     _check_ready()
-    if asistente.memoria:
-        asistente.memoria.set_imagen(None)
+    user_id = (req.session_id if req else None) or "default_user"
+    asistente._get_memoria(user_id).set_imagen(None)
     return {"ok": True, "mensaje": "Imagen activa eliminada"}
 
 
