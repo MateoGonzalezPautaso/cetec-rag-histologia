@@ -70,9 +70,11 @@ class SemanticMemory:
     def set_imagen(self, path: Optional[str], analisis_visual: Optional[str] = None):
         if path and os.path.exists(path):
             self.imagen_activa_path = path
-            self.imagen_turno_subida = self.turno_actual
+            # add_interaction() incrementa turno_actual recién al finalizar el
+            # turno, así que la imagen del turno en curso es turno_actual + 1.
+            self.imagen_turno_subida = self.turno_actual + 1
             self.analisis_visual_activo = analisis_visual
-            print(f"   📌 Imagen activa registrada (turno {self.turno_actual}): {path}")
+            print(f"   📌 Imagen activa registrada (turno {self.imagen_turno_subida}): {path}")
         elif path is None:
             self.imagen_activa_path = None
             self.analisis_visual_activo = None
@@ -97,20 +99,21 @@ class SemanticMemory:
         if len(self.conversations) > self.max_entries:
             self.conversations.pop(0)
 
-        if len(self.conversations) > 3:
-            recent = self.conversations[-3:]
-            self.direct_history = ""
-            for conv in recent:
-                img_nota = (
-                    f" [con imagen: {os.path.basename(conv['imagen'])}]"
-                    if conv.get("imagen") else ""
-                )
-                self.direct_history += (
-                    f"\nUsuario{img_nota}: {conv['query']}\n"
-                    f"Asistente: {conv['response']}\n"
-                )
-        else:
-            self.direct_history += f"\nUsuario: {query}\nAsistente: {response}\n"
+        # Reconstruimos siempre desde las últimas 3 interacciones, con el mismo
+        # formato en todos los tamaños (antes había dos ramas que se
+        # desincronizaban en la transición de 3 a 4 turnos: se perdía un turno
+        # y cambiaba el formato a mitad de conversación).
+        recent = self.conversations[-3:]
+        self.direct_history = ""
+        for conv in recent:
+            img_nota = (
+                f" [con imagen: {os.path.basename(conv['imagen'])}]"
+                if conv.get("imagen") else ""
+            )
+            self.direct_history += (
+                f"\nUsuario{img_nota}: {conv['query']}\n"
+                f"Asistente: {conv['response']}\n"
+            )
 
         self._update_summary()
 
@@ -182,7 +185,12 @@ class SemanticMemory:
                     collection_name=self._collection,
                     query=emb_query, using="texto", limit=2,
                 ).points
-                memorias = [r.payload["resumen"] for r in results if r.score > 0.4]
+                # .get evita que un punto sin 'resumen' (esquema viejo/parcial)
+                # tire KeyError y descarte TODAS las memorias recuperadas.
+                memorias = [
+                    r.payload.get("resumen") for r in results
+                    if r.score > 0.4 and r.payload and r.payload.get("resumen")
+                ]
                 if memorias:
                     ctx += "\n\n[Memorias históricas recuperadas:]\n" + "\n- ".join(memorias)
             except Exception as e:
