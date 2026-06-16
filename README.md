@@ -33,6 +33,7 @@
 
 ## Tabla de contenidos
 
+- [Tabla de contenidos](#tabla-de-contenidos)
 - [Contexto](#contexto)
 - [Características](#características)
 - [Arquitectura](#arquitectura)
@@ -57,8 +58,8 @@ Proyecto desarrollado en el **CETEC** de la **Facultad de Ingeniería de la Univ
 | | |
 |---|---|
 | **Dirección del proyecto** | Diego Racero |
-| **Equipo (Grupo 2)** | Mateo González Pautaso · Alén Calandria |
-| **Período** | _(a completar)_ |
+| **Equipo (Grupo 2)** | Mateo Gonzalez Pautaso · Alén Calandria |
+| **Período** | 9 de febrero – 29 de junio de 2026 |
 
 **Stack:** FastAPI · LangGraph · Qdrant · Groq (Llama-4-Scout) · MiniLM · UNI/PLIP · frontend web
 
@@ -120,6 +121,10 @@ flowchart TD
 ## Inicio rápido
 
 ```bash
+# 0. Clonar el repositorio
+git clone https://github.com/MateoGonzalezPautaso/cetec-rag-histologia.git
+cd cetec-rag-histologia
+
 # 1. Copiar y completar el archivo de configuración
 cp .env.example app/.env
 # Editar app/.env con tus claves (ver sección Configuración)
