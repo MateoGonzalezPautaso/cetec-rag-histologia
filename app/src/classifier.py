@@ -26,6 +26,10 @@ class ClasificadorSemantico:
     """
 
     UMBRAL_SIMILITUD = 0.45
+    # Umbral usado solo cuando el árbitro LLM falla (timeout/cuota/JSON inválido).
+    # Da beneficio de la duda a consultas cercanas al dominio, pero NO acepta
+    # cualquier cosa por encima del ruido (el viejo 0.10 dejaba pasar off-topic).
+    UMBRAL_FALLBACK = 0.38
 
     def __init__(self, llm, embeddings, device: str, temario: List[str]):
         self.llm = llm
@@ -128,7 +132,11 @@ Responde ÚNICAMENTE en JSON válido (sin backticks):
                 SystemMessage(content=system),
                 HumanMessage(content=f"CONSULTA: {consulta}"),
             ])
-            texto = re.sub(r"```json\s*|\s*```", "", resp.content.strip())
+            texto = re.sub(r"```(?:json)?\s*|\s*```", "", (resp.content or "").strip())
+            # El modelo a veces antepone/pospone prosa al JSON; extraemos el objeto.
+            match = re.search(r"\{.*\}", texto, re.DOTALL)
+            if match:
+                texto = match.group(0)
             data = json.loads(texto)
             valido = bool(data.get("valido", True))
 
@@ -146,7 +154,7 @@ Responde ÚNICAMENTE en JSON válido (sin backticks):
         except Exception as e:
             print(f"   ⚠️ Error clasificador LLM: {e}")
             return {
-                "valido": imagen_activa or sim > 0.10,
+                "valido": bool(imagen_activa) or sim >= self.UMBRAL_FALLBACK,
                 "tema_encontrado": None,
                 "motivo": f"Fallback: {e}",
                 "similitud_dominio": sim,
