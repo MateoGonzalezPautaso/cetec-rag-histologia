@@ -148,9 +148,23 @@ def embed_documents_con_reintento(embeddings, textos: list, max_retries: int = 5
 # ── LangSmith ─────────────────────────────────────────────────────────────────
 
 def setup_langsmith():
+    def _dummy_traceable(*args, **kwargs):
+        def decorator(func): return func
+        if len(args) == 1 and callable(args[0]):
+            return args[0]
+        return decorator
+
+    api_key = userdata.get("LANGSMITH_API_KEY")
+    if not api_key:
+        # Sin API key no activamos el tracing: si no, LangChain intenta enviar
+        # trazas a LangSmith sin credenciales y spamea errores 401.
+        os.environ["LANGCHAIN_TRACING_V2"] = "false"
+        print("ℹ️ LangSmith deshabilitado (sin LANGSMITH_API_KEY)")
+        return False, _dummy_traceable, None
+
     config = {
         "LANGCHAIN_TRACING_V2": "true",
-        "LANGCHAIN_API_KEY": userdata.get("LANGSMITH_API_KEY"),
+        "LANGCHAIN_API_KEY": api_key,
         "LANGCHAIN_ENDPOINT": "https://api.smith.langchain.com",
         "LANGCHAIN_PROJECT": userdata.get("LANGSMITH_PROJECT") or "rag-histologia",
     }
@@ -164,14 +178,7 @@ def setup_langsmith():
         return True, traceable, client
     except Exception as e:
         print(f"⚠️ LangSmith no disponible: {e}")
-
-        def dummy_traceable(*args, **kwargs):
-            def decorator(func): return func
-            if len(args) == 1 and callable(args[0]):
-                return args[0]
-            return decorator
-
-        return False, dummy_traceable, None
+        return False, _dummy_traceable, None
 
 
 LANGSMITH_ENABLED, traceable, langsmith_client = setup_langsmith()
