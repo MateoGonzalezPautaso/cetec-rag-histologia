@@ -25,9 +25,9 @@
 > **citando la fuente**. No es un wrapper de un chatbot: incluye recuperación híbrida, memoria por sesión
 > y un pipeline de evaluación cuantitativa.
 
-<!-- 📸 Agregá una captura o GIF de la interfaz acá para que se vea de un vistazo:
-<p align="center"><img src="docs/demo.png" width="720" alt="Demo de la interfaz"></p>
--->
+<p align="center">
+  <img src="docs/demo-busqueda-imagenes.png" width="800" alt="RAG Histología — respuesta citada con imágenes del manual">
+</p>
 
 ---
 
@@ -36,6 +36,7 @@
 - [Tabla de contenidos](#tabla-de-contenidos)
 - [Contexto](#contexto)
 - [Características](#características)
+- [Demo](#demo)
 - [Arquitectura](#arquitectura)
 - [Inicio rápido](#inicio-rápido)
 - [Requisitos previos](#requisitos-previos)
@@ -75,6 +76,18 @@ Proyecto desarrollado en el **CETEC UBATIC** (Facultad de Ingeniería, Universid
 - 🧠 **Memoria por sesión**: recuerda el historial y la imagen activa entre turnos, aislada por usuario.
 - 📊 **Evaluación cuantitativa**: pipeline con RAGAS (recall@k, fidelidad) + smoke tests de confiabilidad.
 - 💻 **Local-first**: Qdrant embebido por defecto (sin servicios externos), con opción de Qdrant Cloud.
+
+---
+
+## Demo
+
+**Búsqueda de imágenes del manual** (arriba) — el usuario pide imágenes de un tema y el asistente recupera las del manual con su descripción y la fuente.
+
+**Análisis multimodal** — el usuario sube una preparación al microscopio y pregunta qué es; el asistente la identifica comparándola contra las imágenes de referencia del manual:
+
+<p align="center">
+  <img src="docs/demo-multimodal.png" width="820" alt="Análisis multimodal: identificar una imagen histológica subida">
+</p>
 
 ---
 
