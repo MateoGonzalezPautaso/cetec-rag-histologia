@@ -566,7 +566,11 @@ class QdrantVectorStore:
             top3 = [(r["nombre_archivo"], round(r["similitud_semantica"], 3)) for r in rankeadas[:3]]
             print(f"   📊 Re-ranking top-3: {top3}")
 
-        UMBRAL = 0.55
+        # Umbral de similitud caption↔consulta (MiniLM). 0.55 era demasiado
+        # exigente: matches válidos rondan ~0.4 y nunca pasaban. Los filtros
+        # posteriores (fuente dominante + keywords en el caption) limpian el
+        # resto, así que un umbral más bajo es seguro. Tunable por env.
+        UMBRAL = float(os.getenv("IMG_RERANK_UMBRAL", "0.35"))
         filtradas = [r for r in rankeadas if r["similitud_semantica"] >= UMBRAL]
 
         # Filter by dominant source
