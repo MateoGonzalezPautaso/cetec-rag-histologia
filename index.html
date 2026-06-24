@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG Histología — Asistente multimodal para histología médica</title>
+  <meta name="description" content="Sistema RAG multimodal para consulta de histología médica. Responde preguntas y analiza imágenes histológicas fundamentando cada respuesta en el manual de la cátedra.">
+  <link rel="icon" type="image/png" href="favicon-256.png">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #ffffff;
+      --surface:  #f8fafc;
+      --border:   #e2e8f0;
+      --text:     #0f172a;
+      --muted:    #64748b;
+      --accent:   #2563eb;
+      --accent-h: #1d4ed8;
+      --green:    #059669;
+      --code-bg:  #f1f5f9;
+      --shadow:   0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+      --shadow-md:0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
+      --radius:   10px;
+      --font:     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono:     "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto;
+      padding: 0 24px;
+      height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: .95rem; color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo img { width: 28px; height: 28px; }
+    .nav-links { display: flex; gap: 6px; }
+    .nav-links a {
+      font-size: .85rem; padding: 6px 12px; border-radius: 6px;
+      color: var(--muted); text-decoration: none;
+      transition: background .15s, color .15s;
+    }
+    .nav-links a:hover { background: var(--surface); color: var(--text); }
+    .nav-links a.btn-gh {
+      background: var(--text); color: #fff; font-weight: 600;
+    }
+    .nav-links a.btn-gh:hover { background: #1e293b; color: #fff; }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    section { padding: 80px 0; }
+    section:nth-child(even) { background: var(--surface); }
+
+    h2.section-title {
+      font-size: 1.6rem; font-weight: 700; color: var(--text);
+      margin-bottom: 8px;
+    }
+    p.section-sub {
+      color: var(--muted); font-size: 1rem; margin-bottom: 48px;
+    }
+
+    /* ── Hero ── */
+    #hero {
+      padding: 96px 0 72px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      font-size: .78rem; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--accent);
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      padding: 4px 12px; border-radius: 99px;
+      margin-bottom: 20px;
+    }
+    #hero h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800; line-height: 1.15;
+      color: var(--text); margin-bottom: 20px;
+    }
+    #hero .subtitle {
+      font-size: 1.15rem; color: var(--muted);
+      max-width: 600px; margin: 0 auto 36px;
+    }
+    .hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border-radius: 8px;
+      font-size: .9rem; font-weight: 600; text-decoration: none;
+      transition: all .15s;
+    }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+    }
+    .btn-primary:hover { background: var(--accent-h); }
+    .btn-secondary {
+      background: var(--bg); color: var(--text);
+      border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--surface); }
+
+    .badges { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+    .badges img { height: 22px; }
+
+    /* ── Demo ── */
+    #demo .demo-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+    }
+    @media (max-width: 700px) { #demo .demo-grid { grid-template-columns: 1fr; } }
+    .demo-card {
+      border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; box-shadow: var(--shadow-md);
+    }
+    .demo-card img { width: 100%; display: block; }
+    .demo-card-info { padding: 16px 20px; }
+    .demo-card-info h3 { font-size: .95rem; font-weight: 600; margin-bottom: 4px; }
+    .demo-card-info p { font-size: .85rem; color: var(--muted); }
+
+    /* ── Features ── */
+    #features .feat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .feat-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .feat-icon { font-size: 1.6rem; margin-bottom: 12px; }
+    .feat-card h3 { font-size: .95rem; font-weight: 700; margin-bottom: 6px; }
+    .feat-card p { font-size: .85rem; color: var(--muted); }
+
+    /* ── Pipeline ── */
+    #pipeline .pipe-flow {
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 0; margin: 0 auto;
+      max-width: 900px;
+    }
+    .pipe-node {
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 10px 16px;
+      font-size: .8rem; font-weight: 600; color: var(--text);
+      box-shadow: var(--shadow);
+      white-space: nowrap;
+    }
+    .pipe-node.accent { background: #eff6ff; border-color: #93c5fd; color: var(--accent); }
+    .pipe-arrow {
+      color: var(--muted); font-size: 1.1rem; padding: 0 4px;
+    }
+    .pipe-note {
+      font-size: .8rem; color: var(--muted); margin-top: 20px;
+      max-width: 780px;
+    }
+    .pipe-note span { color: var(--accent); font-weight: 600; }
+
+    /* ── Stack ── */
+    #stack .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .stack-item {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 20px;
+      box-shadow: var(--shadow);
+    }
+    .stack-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .stack-item h4 { font-size: .88rem; font-weight: 700; margin-bottom: 2px; }
+    .stack-item p { font-size: .78rem; color: var(--muted); }
+
+    /* ── Metrics ── */
+    #metrics .metrics-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    }
+    @media (max-width: 700px) { #metrics .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+    .metric-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px 20px;
+      text-align: center; box-shadow: var(--shadow);
+    }
+    .metric-val {
+      font-size: 2rem; font-weight: 800; color: var(--accent);
+      line-height: 1;
+    }
+    .metric-label {
+      font-size: .78rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .05em;
+      margin-top: 6px;
+    }
+    .metric-note { font-size: .72rem; color: #94a3b8; margin-top: 4px; }
+
+    /* ── Quick start ── */
+    #quickstart pre {
+      background: #1e293b; color: #e2e8f0;
+      border-radius: var(--radius); padding: 20px 24px;
+      font-family: var(--mono); font-size: .82rem;
+      overflow-x: auto; line-height: 1.7;
+      box-shadow: var(--shadow-md);
+    }
+    #quickstart pre .comment { color: #64748b; }
+    #quickstart pre .cmd { color: #7dd3fc; }
+    #quickstart .qs-steps {
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .qs-step {
+      display: grid; grid-template-columns: 28px 1fr;
+      gap: 14px; align-items: start;
+    }
+    .qs-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      font-size: .8rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .qs-step h4 { font-size: .9rem; font-weight: 600; margin-bottom: 8px; }
+
+    /* ── Team ── */
+    #team { text-align: center; }
+    .team-block {
+      display: inline-flex; flex-direction: column; align-items: center;
+      gap: 6px; margin-top: 12px;
+    }
+    .team-item { font-size: .9rem; color: var(--muted); }
+    .team-item strong { color: var(--text); }
+    .team-sep { color: var(--border); }
+    .institution {
+      margin-top: 24px; font-size: .82rem; color: var(--muted);
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 28px 0; text-align: center;
+      font-size: .8rem; color: var(--muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="#">
+      <img src="favicon-256.png" alt="Logo">
+      RAG Histología
+    </a>
+    <div class="nav-links">
+      <a href="#demo">Demo</a>
+      <a href="#features">Características</a>
+      <a href="#quickstart">Inicio rápido</a>
+      <a href="https://github.com/MateoGonzalezPautaso/cetec-rag-histologia" class="btn-gh" target="_blank" rel="noopener">
+        GitHub →
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section id="hero">
+  <div class="container">
+    <div class="hero-eyebrow">CETEC UBATIC · Facultad de Ingeniería · UBA</div>
+    <h1>Asistente RAG<br>para Histología Médica</h1>
+    <p class="subtitle">
+      Respondé preguntas sobre el manual de la cátedra y analizá imágenes histológicas
+      en lenguaje natural. Cada respuesta viene <strong>citada y trazable a su fuente</strong>.
+    </p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="#quickstart">Inicio rápido</a>
+      <a class="btn btn-secondary" href="https://github.com/MateoGonzalezPautaso/cetec-rag-histologia" target="_blank" rel="noopener">Ver en GitHub</a>
+    </div>
+    <div class="badges">
+      <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
+      <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+      <img src="https://img.shields.io/badge/LangGraph-1C3C3C?logo=langchain&logoColor=white" alt="LangGraph">
+      <img src="https://img.shields.io/badge/Qdrant-DC244C?logo=qdrant&logoColor=white" alt="Qdrant">
+      <img src="https://img.shields.io/badge/LLM-Llama_4_Scout_(Groq)-F55036" alt="Groq">
+      <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT">
+    </div>
+  </div>
+</section>
+
+<!-- ── Demo ── -->
+<section id="demo">
+  <div class="container">
+    <h2 class="section-title">Demo</h2>
+    <p class="section-sub">El sistema en acción sobre el manual de histología de la cátedra.</p>
+    <div class="demo-grid">
+      <div class="demo-card">
+        <img src="demo-busqueda-imagenes.png" alt="Búsqueda de imágenes del manual">
+        <div class="demo-card-info">
+          <h3>Búsqueda de imágenes del manual</h3>
+          <p>El usuario pide imágenes de un tema y el asistente las recupera con su descripción y fuente citada.</p>
+        </div>
+      </div>
+      <div class="demo-card">
+        <img src="demo-multimodal.png" alt="Análisis multimodal de preparación histológica">
+        <div class="demo-card-info">
+          <h3>Análisis multimodal</h3>
+          <p>El usuario sube una foto de una preparación al microscopio; el sistema la identifica comparándola contra las imágenes de referencia del manual.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ── -->
+<section id="features">
+  <div class="container">
+    <h2 class="section-title">Características</h2>
+    <p class="section-sub">Un pipeline RAG completo, no un wrapper de chatbot.</p>
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-icon">🗣️</div>
+        <h3>Respuestas citadas</h3>
+        <p>Cada respuesta incluye la fuente exacta del manual (archivo y página), con trazabilidad completa.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🖼️</div>
+        <h3>Multimodal</h3>
+        <p>Subí una imagen histológica y preguntá sobre ella. El sistema la analiza con modelos de visión especializados en patología (UNI y PLIP).</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🔬</div>
+        <h3>Comparación imagen↔manual</h3>
+        <p>Compara la imagen del usuario contra las imágenes de referencia del manual para identificar la estructura histológica.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🔎</div>
+        <h3>Búsqueda híbrida</h3>
+        <p>Combina similitud semántica de texto, entidades histológicas, keywords y embeddings visuales en una sola búsqueda ponderada.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🧭</div>
+        <h3>Clasificador de dominio</h3>
+        <p>Descarta consultas fuera de histología antes de consumir retrieval o cuota de LLM, con árbitro LLM en casos ambiguos.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🧠</div>
+        <h3>Memoria por sesión</h3>
+        <p>Recuerda el historial y la imagen activa entre turnos del chat, aislada por usuario. La imagen persiste hasta que el usuario la cambie.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">📊</div>
+        <h3>Evaluación cuantitativa</h3>
+        <p>Pipeline RAGAS completo (fidelidad, relevancia, recall de contexto) + smoke tests de confiabilidad automatizados.</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">💻</div>
+        <h3>Local-first</h3>
+        <p>Qdrant embebido por defecto — sin servicios externos ni Docker. Funciona en CPU; GPU NVIDIA acelera los modelos de visión.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pipeline ── -->
+<section id="pipeline">
+  <div class="container">
+    <h2 class="section-title">Cómo funciona</h2>
+    <p class="section-sub">Cada consulta recorre un grafo de estados LangGraph con bifurcación según imagen y dominio.</p>
+    <div class="pipe-flow">
+      <div class="pipe-node accent">Consulta + imagen?</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node">inicializar</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node">procesar_imagen</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node">clasificar</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node">generar_consulta</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node">buscar_qdrant</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node">filtrar_contexto</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node">analisis_comparativo</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node">generar_respuesta</div>
+      <span class="pipe-arrow">→</span>
+      <div class="pipe-node accent">Respuesta citada</div>
+    </div>
+    <p class="pipe-note">
+      La búsqueda híbrida en <span>buscar_qdrant</span> combina cinco señales: vectorial de texto (MiniLM),
+      embeddings visuales UNI + PLIP, búsqueda por entidades histológicas (payload de Qdrant)
+      y fallback por keywords. Los pesos cambian según si hay imagen activa o no.
+    </p>
+  </div>
+</section>
+
+<!-- ── Stack ── -->
+<section id="stack">
+  <div class="container">
+    <h2 class="section-title">Stack tecnológico</h2>
+    <p class="section-sub">Tecnologías de producción, sin dependencias de nube obligatorias.</p>
+    <div class="stack-grid">
+      <div class="stack-item">
+        <div class="stack-dot" style="background:#009688"></div>
+        <div>
+          <h4>FastAPI</h4>
+          <p>Backend REST + frontend servido same-origin</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div class="stack-dot" style="background:#1C3C3C"></div>
+        <div>
+          <h4>LangGraph</h4>
+          <p>Orquestador de estados del pipeline RAG</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div class="stack-dot" style="background:#DC244C"></div>
+        <div>
+          <h4>Qdrant</h4>
+          <p>Base vectorial embebida con named vectors</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div class="stack-dot" style="background:#F55036"></div>
+        <div>
+          <h4>Llama 4 Scout (Groq)</h4>
+          <p>LLM generador y árbitro de clasificación</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div class="stack-dot" style="background:#2563eb"></div>
+        <div>
+          <h4>UNI (MahmoodLab)</h4>
+          <p>ViT-L patología, 1024d — embedding visual principal</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div class="stack-dot" style="background:#7c3aed"></div>
+        <div>
+          <h4>PLIP (vinid)</h4>
+          <p>CLIP fine-tuned en patología, 512d</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div class="stack-dot" style="background:#0ea5e9"></div>
+        <div>
+          <h4>MiniLM-L6-v2</h4>
+          <p>Embeddings de texto, 384d</p>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div class="stack-dot" style="background:#f59e0b"></div>
+        <div>
+          <h4>PyMuPDF + Tesseract</h4>
+          <p>Extracción de texto e imágenes de PDFs</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Metrics ── -->
+<section id="metrics">
+  <div class="container">
+    <h2 class="section-title">Evaluación</h2>
+    <p class="section-sub">Métricas RAGAS sobre 12 preguntas con golden set fuente + página, juez gpt-4o-mini.</p>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-val">87%</div>
+        <div class="metric-label">Faithfulness</div>
+        <div class="metric-note">La respuesta es fiel al contexto recuperado</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">80%</div>
+        <div class="metric-label">Context Precision</div>
+        <div class="metric-note">El contexto recuperado es relevante</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">89%</div>
+        <div class="metric-label">Context Recall</div>
+        <div class="metric-note">Se recupera la evidencia necesaria</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val">100%</div>
+        <div class="metric-label">Fuente dominante</div>
+        <div class="metric-note">La fuente PDF dominante siempre es la correcta</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Quick start ── -->
+<section id="quickstart">
+  <div class="container">
+    <h2 class="section-title">Inicio rápido</h2>
+    <p class="section-sub">Desde cero hasta el servidor corriendo en cuatro pasos.</p>
+    <div class="qs-steps">
+      <div class="qs-step">
+        <div class="qs-num">1</div>
+        <div>
+          <h4>Clonar el repositorio</h4>
+          <pre><span class="cmd">git clone</span> https://github.com/MateoGonzalezPautaso/cetec-rag-histologia.git
+<span class="cmd">cd</span> cetec-rag-histologia</pre>
+        </div>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">2</div>
+        <div>
+          <h4>Crear el archivo de dependencias</h4>
+          <pre><span class="comment"># pyproject.toml no está versionado (depende de CPU/GPU)</span>
+<span class="cmd">cp</span> app/pyproject.example.toml app/pyproject.toml</pre>
+        </div>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">3</div>
+        <div>
+          <h4>Configurar las claves de API</h4>
+          <pre><span class="cmd">cp</span> .env.example app/.env
+<span class="comment"># Editar app/.env con GROQ_API_KEY y HF_TOKEN</span></pre>
+        </div>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">4</div>
+        <div>
+          <h4>Lanzar el servidor</h4>
+          <pre><span class="cmd">cd</span> app && ./start.sh
+<span class="comment"># Abre automáticamente http://localhost:10007</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Team ── -->
+<section id="team">
+  <div class="container">
+    <h2 class="section-title">Equipo</h2>
+    <p class="section-sub">Proyecto desarrollado en CETEC UBATIC 2026-27.</p>
+    <div class="team-block">
+      <div class="team-item"><strong>Mateo Gonzalez Pautaso</strong></div>
+      <div class="team-sep">·</div>
+      <div class="team-item"><strong>Alén Calandria</strong></div>
+      <div class="team-sep">·</div>
+      <div class="team-item">Dirección: <strong>Diego Racero</strong></div>
+    </div>
+    <p class="institution">
+      Facultad de Ingeniería · Universidad de Buenos Aires<br>
+      Febrero – Junio 2026
+    </p>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="container">
+    <p>
+      Distribuido bajo licencia <a href="https://github.com/MateoGonzalezPautaso/cetec-rag-histologia/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a> ·
+      <a href="https://github.com/MateoGonzalezPautaso/cetec-rag-histologia" target="_blank" rel="noopener">GitHub</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
